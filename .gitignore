@@ -16,8 +16,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-.env*
+# env files — proteger credenciales reales, permitir la plantilla de ejemplo
+.env
+.env.local
+.env.*.local
+!.env.example
 
 # vercel
 .vercel

@@ -3,6 +3,7 @@ https://friends.tecnidepot.com/
 Local:
 C:\xampp\htdocs\CONEXION_FRIENDS_SUD\Conexion_FS_Dev
 
+https://github.com/dacadomx-collab/conexion-friends-sud.git
 ************************************************
 Correr servidor
 npm run dev

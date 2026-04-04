@@ -1,0 +1,97 @@
+# =============================================================================
+# PROYECTO  : Conexión FRIENDS SUD
+# ARCHIVO   : .htaccess (Raíz del proyecto)
+# SERVIDOR  : Apache / cPanel
+# PROPÓSITO : Blindaje de seguridad nivel militar para accesos web no
+#             autorizados. Protege archivos sensibles, documentación interna
+#             y previene el reconocimiento del árbol de directorios.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# REGLA 1 — DESHABILITAR LISTADO DE DIRECTORIOS
+# Impide que Apache muestre el árbol de archivos cuando no existe index.html.
+# Sin esto, cualquier visitante podría ver todos los archivos del proyecto.
+# -----------------------------------------------------------------------------
+Options -Indexes
+
+
+# -----------------------------------------------------------------------------
+# REGLA 2 — BLOQUEAR ARCHIVOS QUE COMIENZAN CON PUNTO (archivos ocultos)
+# Protege: .env, .git, .github, .gitignore, .htaccess propio, etc.
+# El bloqueo de .htaccess y .htpasswd se refuerza explícitamente en Regla 4.
+# -----------------------------------------------------------------------------
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+
+# -----------------------------------------------------------------------------
+# REGLA 3 — BLOQUEAR ACCESO WEB A LA CARPETA /knowledge
+# Los archivos .md de documentación interna son confidenciales y no deben
+# ser accesibles desde ninguna URL pública.
+# -----------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^knowledge(/.*)?$ - [F,L]
+</IfModule>
+
+
+# -----------------------------------------------------------------------------
+# REGLA 4 — PROTEGER ARCHIVOS SENSIBLES DE SERVIDOR
+# Bloquea el acceso directo a archivos de configuración críticos:
+#   - .htaccess / .htpasswd (configuración Apache)
+#   - *.ini                 (archivos de configuración PHP / parse_ini_file)
+# -----------------------------------------------------------------------------
+<FilesMatch "(^\.htaccess|^\.htpasswd|\.ini$)">
+    Require all denied
+</FilesMatch>
+
+
+# -----------------------------------------------------------------------------
+# REGLA 5 — BLOQUEAR ACCESO DIRECTO A ARCHIVOS PHP FUERA DE /api/
+# Solo los endpoints dentro de /api/ deben ser accesibles.
+# Los archivos PHP en la raíz u otras carpetas no son endpoints públicos.
+# -----------------------------------------------------------------------------
+<FilesMatch "\.php$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Permitir exclusivamente los archivos PHP dentro de /api/
+    RewriteRule ^api/[^/]+\.php$ - [L]
+</IfModule>
+
+
+# -----------------------------------------------------------------------------
+# REGLA 6 — CABECERAS DE SEGURIDAD HTTP
+# Protección adicional contra ataques comunes de navegador (XSS, Clickjacking,
+# MIME sniffing). Aplica sobre todas las respuestas del servidor.
+# -----------------------------------------------------------------------------
+<IfModule mod_headers.c>
+    # Evitar que el navegador detecte el tipo MIME automáticamente
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Bloquear renderizado en iframes de otros dominios (anti-clickjacking)
+    Header always set X-Frame-Options "DENY"
+
+    # Activar el filtro XSS del navegador (protección legacy para IE/Edge)
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Forzar HTTPS en producción (1 año, incluye subdominios)
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Eliminar la cabecera que expone la versión de Apache
+    Header always unset X-Powered-By
+    Header always unset Server
+</IfModule>
+
+
+# -----------------------------------------------------------------------------
+# REGLA 7 — PÁGINA DE ERROR PERSONALIZADA
+# Devuelve 403 genérico en lugar de exponer mensajes de Apache que revelan
+# información de la estructura del servidor.
+# -----------------------------------------------------------------------------
+ErrorDocument 403 "Acceso denegado."
+ErrorDocument 404 "Recurso no encontrado."

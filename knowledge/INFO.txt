@@ -1,0 +1,31 @@
+https://friends.tecnidepot.com/
+
+Local:
+C:\xampp\htdocs\CONEXION_FRIENDS_SUD\Conexion_FS_Dev
+
+************************************************
+Correr servidor
+npm run dev
+http://localhost:3000/
+
+buscando errores de TypeScript
+npx tsc --noEmit
+
+Crear Carpeta Out
+npm run build
+************************************************
+***************** DataBases ********************
+************************************************
+Database: tecnidepot_conexion_friends
+Privileged Users: tecnidepot_conexion_user_db	
+pass: vh7(yd_0U?c6.W31
+******************************************
+***************** FTP ********************
+******************************************
+FTP Username: friends_conex@friends.tecnidepot.com
+FTP server: ftp.tecnidepot.com
+FTP & explicit FTPS port:  21
+pass: 3FeyTfe,fbIb-FW1
+******************************************
+*****************  ********************
+******************************************

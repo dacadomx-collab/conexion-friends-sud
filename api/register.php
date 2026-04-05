@@ -13,12 +13,26 @@
  */
 
 // -----------------------------------------------------------------------------
-// 1. CABECERAS HTTP
+// 1. CABECERAS HTTP — CORS DINÁMICO
+//    Whitelist explícita de orígenes permitidos.
+//    El Origin del cliente se compara contra la lista; nunca se refleja ciegamente.
 // -----------------------------------------------------------------------------
+$allowedOrigins = [
+    'https://friends.tecnidepot.com',
+    'http://localhost:3000',
+    'http://localhost:3001',
+];
+
+$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$corsOrigin    = in_array($requestOrigin, $allowedOrigins, true)
+    ? $requestOrigin
+    : 'https://friends.tecnidepot.com';
+
 header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: https://friends.tecnidepot.com');
+header('Access-Control-Allow-Origin: ' . $corsOrigin);
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
+header('Vary: Origin');
 
 // Respuesta inmediata al preflight CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

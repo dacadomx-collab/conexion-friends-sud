@@ -66,6 +66,63 @@
 
 ---
 
+### Endpoint: `api/update_profile.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/update_profile.php`
+- **Autenticación:** Ninguna por ahora (se añadirá JWT en fase futura)
+- **Alcance de DB:** INSERT ... ON DUPLICATE KEY UPDATE en tabla `profiles` ÚNICAMENTE.
+  No toca: `users`, `profile_photos`, `social_networks`.
+
+**Payload (Front → Back) — camelCase:**
+```json
+{
+  "userId":       "int    — requerido, entero positivo, debe existir en users.id",
+  "ward":         "string — requerido, trim(), máx. 100 chars",
+  "stake":        "string — requerido, trim(), máx. 100 chars",
+  "bio":          "string — requerido, trim(), máx. 500 chars",
+  "showWhatsapp": "boolean — debe ser true o false (booleano estricto)",
+  "country":      "string — opcional, trim(), máx. 100 chars, null si vacío",
+  "state":        "string — opcional, trim(), máx. 100 chars, null si vacío",
+  "city":         "string — opcional, trim(), máx. 100 chars, null si vacío"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "message": "Perfil actualizado exitosamente.",
+  "data": {
+    "userId":       "int",
+    "ward":         "string",
+    "stake":        "string",
+    "bio":          "string",
+    "showWhatsapp": "boolean",
+    "country":      "string | null",
+    "state":        "string | null",
+    "city":         "string | null"
+  }
+}
+```
+
+**Response Error — HTTP 400 / 404 / 409 / 500:**
+```json
+{
+  "status": "error",
+  "message": "string — descripción del error",
+  "data":    []
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | Campo requerido faltante, `userId` no es entero positivo, `showWhatsapp` no es booleano, campo excede longitud máxima |
+| 404 | `userId` no existe en la tabla `users` |
+| 409 | Error de FK (SQLSTATE 23000) |
+| 500 | Error interno de servidor o DB |
+
+---
+
 ## 🧠 LÓGICA DE NEGOCIO (REGLAS DE PIEDRA)
 
 1. **Inmutabilidad de Identidad:** Los campos `full_name` y `birth_date` se insertan

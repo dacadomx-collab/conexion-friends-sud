@@ -45,7 +45,7 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="login-email">Correo electronico</FieldLabel>
-                  <div className="relative">
+                  <div className="relative" suppressHydrationWarning>
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="login-email"
@@ -59,7 +59,7 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
 
                 <Field>
                   <FieldLabel htmlFor="login-password">Contrasena</FieldLabel>
-                  <div className="relative">
+                  <div className="relative" suppressHydrationWarning>
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="login-password"
@@ -100,7 +100,7 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="register-name">Nombre completo</FieldLabel>
-                  <div className="relative">
+                  <div className="relative" suppressHydrationWarning>
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-name"
@@ -114,7 +114,7 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
 
                 <Field>
                   <FieldLabel htmlFor="register-birthdate">Fecha de nacimiento</FieldLabel>
-                  <div className="relative">
+                  <div className="relative" suppressHydrationWarning>
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-birthdate"
@@ -127,7 +127,7 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
 
                 <Field>
                   <FieldLabel htmlFor="register-email">Correo electronico</FieldLabel>
-                  <div className="relative">
+                  <div className="relative" suppressHydrationWarning>
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-email"
@@ -141,7 +141,7 @@ export function AuthForm({ onSuccess }: { onSuccess?: () => void }) {
 
                 <Field>
                   <FieldLabel htmlFor="register-password">Contrasena</FieldLabel>
-                  <div className="relative">
+                  <div className="relative" suppressHydrationWarning>
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="register-password"

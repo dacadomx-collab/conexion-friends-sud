@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
 import { AuthForm } from "@/components/auth-form"
 import { ProfilePage } from "@/components/profile-page"
@@ -106,13 +107,13 @@ export default function HomePage() {
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Al registrarte, aceptas nuestros{" "}
-              <a href="#" className="text-primary hover:underline">
-                Terminos de Servicio
-              </a>{" "}
-              y{" "}
-              <a href="#" className="text-primary hover:underline">
-                Politica de Privacidad
-              </a>
+              <Link href="/terminos" className="text-primary hover:underline">
+                Términos de Uso
+              </Link>{" "}
+              y nuestra{" "}
+              <Link href="/privacidad" className="text-primary hover:underline">
+                Política de Privacidad
+              </Link>
             </p>
           </div>
         </div>

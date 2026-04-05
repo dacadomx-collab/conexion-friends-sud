@@ -30,3 +30,12 @@ pass: 3FeyTfe,fbIb-FW1
 ******************************************
 *****************  ********************
 ******************************************
+
+USER:
+
+
+http://localhost:3001/privacidad
+http://localhost:3001/codigo-de-conducta
+http://localhost:3001/terminos
+
+

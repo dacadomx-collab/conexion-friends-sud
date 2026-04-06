@@ -51,16 +51,12 @@ Options -Indexes
 # -----------------------------------------------------------------------------
 # REGLA 5 — BLOQUEAR ACCESO DIRECTO A ARCHIVOS PHP FUERA DE /api/
 # Solo los endpoints dentro de /api/ deben ser accesibles.
-# Los archivos PHP en la raíz u otras carpetas no son endpoints públicos.
 # -----------------------------------------------------------------------------
-<FilesMatch "\.php$">
-    Require all denied
-</FilesMatch>
-
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # Permitir exclusivamente los archivos PHP dentro de /api/
-    RewriteRule ^api/[^/]+\.php$ - [L]
+    # Si la URL NO empieza con /api/ y es un archivo .php, bloquéalo (Forbidden)
+    RewriteCond %{REQUEST_URI} !^/api/
+    RewriteRule \.php$ - [F,L]
 </IfModule>
 
 

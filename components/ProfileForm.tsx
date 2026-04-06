@@ -108,7 +108,7 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
     setSuccessMessage(null)
     setIsLoading(true)
 
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/update_profile.php`
+    const apiUrl = '/api/update_profile.php'
 
     try {
       const response = await fetch(apiUrl, {

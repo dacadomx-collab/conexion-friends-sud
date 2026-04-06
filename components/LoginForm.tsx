@@ -63,7 +63,7 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
     setApiError(null)
     setIsLoading(true)
 
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/login.php`
+    const apiUrl = '/api/login.php'
 
     try {
       const response = await fetch(apiUrl, {

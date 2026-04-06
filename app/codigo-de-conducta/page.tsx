@@ -96,11 +96,10 @@ export default function CodigoDeConductaPage() {
         {/* Sección 1 */}
         <Section icon={<Heart className="h-4 w-4" />} title="Propósito de la Plataforma">
           <ul className="space-y-2">
-            <Rule>
-              Conexion FRIENDS existe para edificar la fe, fortalecer amistades y
-              conectar a la familia SUD — no para buscar romance o relaciones sentimentales.
-            </Rule>
-            <Rule>
+          <Rule>
+            Conexión FRIENDS existe para edificar la fe, fortalecer amistades y conectar a la gran familia SUD. Nuestro mayor deseo es crear un entorno seguro donde puedan nacer conexiones significativas que, con el tiempo y bajo los principios del Evangelio, puedan florecer hacia la meta eterna del matrimonio en el Templo.
+          </Rule> 
+           <Rule>
               Toda interacción debe poder describirse así: "Lo trataría igual frente al
               obispo o la presidenta de la Sociedad de Socorro."
             </Rule>

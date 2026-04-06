@@ -96,7 +96,7 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
     setSuccessMessage(null)
     setIsLoading(true)
 
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/register.php`
+    const apiUrl = '/api/register.php'
 
     try {
       const response = await fetch(apiUrl, {

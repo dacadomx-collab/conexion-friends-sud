@@ -97,20 +97,41 @@ ErrorDocument 403 "Acceso denegado."
 ErrorDocument 404 "Recurso no encontrado."
 
 # -----------------------------------------------------------------------------
-# REGLA 8 — ENRUTAMIENTO NEXT.JS (CLEAN URLS)
-# Enseña a Apache a servir los archivos .html de Next.js cuando el usuario
-# escribe la ruta limpia (ej. /privacidad -> privacidad.html)
+# REGLA 8 — ENRUTAMIENTO NEXT.JS (CLEAN URLS / APP ROUTER)
+# Next.js con output:'export' genera rutas como carpetas:
+#   /perfil   →  perfil/index.html
+#   /terminos →  terminos/index.html
+# Options -MultiViews evita la negociación de contenido de Apache.
+# DirectoryIndex permite a Apache resolver /perfil → perfil/index.html
+# sin pasar por mod_rewrite cuando el navegador ya incluye la barra final.
+# IMPORTANTE: La regla de archivos físicos NO incluye -d (directorio).
+# Si se incluyera -d, Apache pasaría las carpetas sin modificar y devolvería
+# 403 (Options -Indexes) antes de que la reescritura pudiera actuar.
 # -----------------------------------------------------------------------------
+Options -MultiViews
+DirectoryIndex index.html
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    
-    # 1. Ignorar la carpeta /api/ para no romper nuestro backend PHP
-    RewriteCond %{REQUEST_URI} !^/api/
 
-    # 2. Si existe un archivo .html con el nombre solicitado, sírvelo internamente
-    RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI}.html -f
-    RewriteRule ^(.*)$ $1.html [L]
+    # 1. Pasar /api/ directamente — no tocar el backend PHP
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^ - [L]
 
-    # 3. Si piden la raíz y existe un index.html, sírvelo
-    RewriteRule ^$ index.html [L]
+    # 2. Archivos físicos reales (JS, CSS, imágenes, _next/, fuentes) → sin modificar
+    #    Deliberadamente excluye -d (directorios) para que las reglas 3 y 4 actúen.
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # 3. App Router — si carpeta/index.html existe, servirlo internamente
+    #    Cubre: /perfil → perfil/index.html, /terminos → terminos/index.html
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}/index.html -f
+    RewriteRule ^(.+?)/?$ /$1/index.html [L]
+
+    # 4. Plano — si ruta.html existe, servirlo internamente (patrón legacy)
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI}.html -f
+    RewriteRule ^(.+)$ /$1.html [L]
+
+    # 5. Raíz → index.html
+    RewriteRule ^$ /index.html [L]
 </IfModule>

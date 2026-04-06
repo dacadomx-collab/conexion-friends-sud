@@ -54,7 +54,8 @@ export function MediaForm({ userId }: MediaFormProps) {
   const [facebook,  setFacebook]  = useState("")
 
   // ── UI
-  const [error, setError] = useState<string | null>(null)
+  const [error,     setError]     = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const filledCount = slots.filter((s) => s.file !== null).length
 
@@ -83,21 +84,54 @@ export function MediaForm({ userId }: MediaFormProps) {
   }
 
   // ── Finalizar
-  function handleFinalize() {
-    console.log("[MediaForm] Botón 'Finalizar' presionado.", {
-      userId,
-      fotosSeleccionadas: filledCount,
-      instagram: instagram || "(vacío)",
-      facebook:  facebook  || "(vacío)",
-    })
+  async function handleFinalize() {
+    setError(null)
 
     if (filledCount < MIN_PHOTOS) {
       setError(`Debes subir al menos ${MIN_PHOTOS} fotos para continuar.`)
       return
     }
 
-    // TODO: Conectar endpoint api/upload_photos.php y api/update_social.php
-    router.push("/dashboard")
+    setIsLoading(true)
+
+    try {
+      // ── 1. Redes sociales (JSON) ──────────────────────────────────────────
+      const socialRes  = await fetch("/api/update_social.php", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ userId, instagram, facebook }),
+      })
+      const socialText = await socialRes.text()
+      let   socialJson: { status: string; message: string }
+      try   { socialJson = JSON.parse(socialText) }
+      catch { throw new Error(`Error del servidor (${socialRes.status}): ${socialText.slice(0, 200)}`) }
+      if (socialJson.status !== "success") throw new Error(socialJson.message)
+
+      // ── 2. Fotos (multipart/form-data) ────────────────────────────────────
+      const formData = new FormData()
+      formData.append("userId", String(userId))
+      slots
+        .filter((s) => s.file !== null)
+        .forEach((s) => formData.append("photos[]", s.file as File))
+
+      const photosRes  = await fetch("/api/upload_photos.php", {
+        method: "POST",
+        body:   formData,
+      })
+      const photosText = await photosRes.text()
+      let   photosJson: { status: string; message: string }
+      try   { photosJson = JSON.parse(photosText) }
+      catch { throw new Error(`Error del servidor (${photosRes.status}): ${photosText.slice(0, 200)}`) }
+      if (photosJson.status !== "success") throw new Error(photosJson.message)
+
+      // ── 3. Éxito: redirigir ───────────────────────────────────────────────
+      router.push("/dashboard")
+
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error desconocido al guardar."
+      setError(msg)
+      setIsLoading(false)
+    }
   }
 
   // ── Render
@@ -275,8 +309,9 @@ export function MediaForm({ userId }: MediaFormProps) {
         type="button"
         className="w-full font-semibold"
         onClick={handleFinalize}
+        disabled={isLoading}
       >
-        Finalizar y Entrar al Directorio
+        {isLoading ? "Guardando…" : "Finalizar y Entrar al Directorio"}
       </Button>
 
     </div>

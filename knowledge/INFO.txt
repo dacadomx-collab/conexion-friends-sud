@@ -33,6 +33,8 @@ pass: 3FeyTfe,fbIb-FW1
 
 USER:
 
+user: dacadomx@gmail.com	
+pass: dacado127
 
 http://localhost:3001/privacidad
 http://localhost:3001/codigo-de-conducta

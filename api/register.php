@@ -13,32 +13,9 @@
  */
 
 // -----------------------------------------------------------------------------
-// 1. CABECERAS HTTP — CORS DINÁMICO
-//    Whitelist explícita de orígenes permitidos.
-//    El Origin del cliente se compara contra la lista; nunca se refleja ciegamente.
+// 1. CENTRALIZACIÓN — CORS, cabeceras y clase Database
 // -----------------------------------------------------------------------------
-$allowedOrigins = [
-    'https://friends.tecnidepot.com',
-    'http://localhost:3000',
-    'http://localhost:3001',
-];
-
-$requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$corsOrigin    = in_array($requestOrigin, $allowedOrigins, true)
-    ? $requestOrigin
-    : 'https://friends.tecnidepot.com';
-
-header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: ' . $corsOrigin);
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-header('Vary: Origin');
-
-// Respuesta inmediata al preflight CORS
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
+require_once 'conexion.php';
 
 // -----------------------------------------------------------------------------
 // 2. RESTRICCIÓN DE MÉTODO
@@ -54,30 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // -----------------------------------------------------------------------------
-// 3. CARGA DE CREDENCIALES DESDE .env
-//    El archivo .env se ubica UN nivel arriba de /api/ (en la raíz del proyecto).
-//    Estructura:
-//      /conexion_friends_sud/
-//          .env               ← raíz del proyecto
-//          api/
-//              register.php   ← este archivo
-// -----------------------------------------------------------------------------
-$envPath = __DIR__ . '/../.env';
-
-if (!file_exists($envPath)) {
-    http_response_code(500);
-    echo json_encode([
-        'status'  => 'error',
-        'message' => 'Error de configuración del servidor.',
-        'data'    => []
-    ]);
-    exit;
-}
-
-$env = parse_ini_file($envPath);
-
-// -----------------------------------------------------------------------------
-// 4. LECTURA Y DECODIFICACIÓN DEL PAYLOAD JSON
+// 3. LECTURA Y DECODIFICACIÓN DEL PAYLOAD JSON
 // -----------------------------------------------------------------------------
 $rawBody = file_get_contents('php://input');
 $payload = json_decode($rawBody, true);
@@ -207,30 +161,10 @@ $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 unset($password);
 
 // -----------------------------------------------------------------------------
-// 8. CONEXIÓN PDO
+// 8. CONEXIÓN PDO — vía clase centralizada Database (conexion.php)
 // -----------------------------------------------------------------------------
-try {
-    $dsn = sprintf(
-        'mysql:host=%s;dbname=%s;charset=utf8mb4',
-        $env['DB_HOST'],
-        $env['DB_NAME']
-    );
-
-    $pdo = new PDO($dsn, $env['DB_USER'], $env['DB_PASS'], [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,  // Prepared Statements reales en MySQL
-    ]);
-
-} catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
-        'status'  => 'error',
-        'message' => 'No se pudo conectar al servidor. Intenta más tarde.',
-        'data'    => []
-    ]);
-    exit;
-}
+$db  = new Database();
+$pdo = $db->getConnection();
 
 // -----------------------------------------------------------------------------
 // 9. INSERT EN TABLA `users`

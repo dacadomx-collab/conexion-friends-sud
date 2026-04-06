@@ -66,6 +66,55 @@
 
 ---
 
+### Endpoint: `api/login.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/login.php`
+- **Autenticación:** Ninguna (endpoint público — verifica credenciales propias)
+- **Alcance de DB:** SELECT en tabla `users` ÚNICAMENTE.
+  No toca: `profiles`, `profile_photos`, `social_networks`.
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "email":    "string — requerido, formato email válido",
+  "password": "string — requerido, no vacío"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "message": "Inicio de sesión exitoso.",
+  "data": {
+    "id":       "int",
+    "fullName": "string",
+    "email":    "string"
+  }
+}
+```
+
+**Response Error — HTTP 400 / 401 / 405 / 500:**
+```json
+{
+  "status": "error",
+  "message": "string — descripción del error",
+  "data":    []
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | Campo faltante o formato de email inválido |
+| 401 | Usuario no encontrado o contraseña incorrecta |
+| 405 | Método distinto de POST |
+| 500 | Error interno de servidor o DB |
+
+> **Regla de seguridad:** La respuesta HTTP 401 es idéntica tanto si el email no existe como si la contraseña es incorrecta. Esto previene la enumeración de correos registrados.
+> `password_hash` **nunca** se incluye en ninguna respuesta al Front.
+
+---
+
 ### Endpoint: `api/update_profile.php`
 - **Método:** `POST`
 - **Ruta Completa:** `/api/update_profile.php`

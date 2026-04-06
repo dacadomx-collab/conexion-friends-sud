@@ -95,3 +95,22 @@ Options -Indexes
 # -----------------------------------------------------------------------------
 ErrorDocument 403 "Acceso denegado."
 ErrorDocument 404 "Recurso no encontrado."
+
+# -----------------------------------------------------------------------------
+# REGLA 8 — ENRUTAMIENTO NEXT.JS (CLEAN URLS)
+# Enseña a Apache a servir los archivos .html de Next.js cuando el usuario
+# escribe la ruta limpia (ej. /privacidad -> privacidad.html)
+# -----------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # 1. Ignorar la carpeta /api/ para no romper nuestro backend PHP
+    RewriteCond %{REQUEST_URI} !^/api/
+
+    # 2. Si existe un archivo .html con el nombre solicitado, sírvelo internamente
+    RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI}.html -f
+    RewriteRule ^(.*)$ $1.html [L]
+
+    # 3. Si piden la raíz y existe un index.html, sírvelo
+    RewriteRule ^$ index.html [L]
+</IfModule>

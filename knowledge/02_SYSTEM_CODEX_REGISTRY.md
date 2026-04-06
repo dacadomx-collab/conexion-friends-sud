@@ -123,3 +123,45 @@
 | `stake` | `Input type="text"` | Sí | Máx. 100 chars |
 | `bio` | `Textarea` | Sí | Máx. 500 chars — contador de caracteres restantes en tiempo real |
 | `showWhatsapp` | `Checkbox` | Sí | Se envía como `boolean` estricto |
+
+#### Comportamiento post-éxito
+Tras un guardado exitoso, muestra el mensaje verde durante **1 500 ms** y luego redirige a `/perfil/media?userId={userId}` (Paso 3 del onboarding).
+
+---
+
+### `MediaForm.tsx`
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta** | `components/MediaForm.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Estado** | ✅ Creado — UI completa, backend pendiente (Fase 3) |
+| **Hito** | Fase 3 — Fotos y Redes Sociales |
+| **Ruta de página** | `app/perfil/media/page.tsx` |
+| **Wrapper** | `app/perfil/media/MediaFormWrapper.tsx` |
+| **Endpoint (pendiente)** | `POST /api/upload_photos.php` · `POST /api/update_social.php` |
+
+#### Props
+| Prop | Tipo | Requerida | Descripción |
+| :--- | :--- | :--- | :--- |
+| `userId` | `number` | Sí | ID del usuario autenticado. Recibido desde `MediaFormWrapper` vía `useSearchParams`. |
+
+#### Sección de Fotos
+| Regla | Valor |
+| :--- | :--- |
+| Mínimo obligatorio | 2 fotos (slots con borde azul) |
+| Máximo permitido | 5 fotos |
+| Foto 0 | Siempre es la foto **principal** (etiqueta visible en el preview) |
+| Preview | `URL.createObjectURL()` — local, sin subida real hasta que el backend esté conectado |
+| Formatos aceptados | `image/jpeg`, `image/png`, `image/webp` |
+| Tabla de destino (futuro) | `profile_photos` — `user_id`, `sort_order`, `photo_url` |
+
+#### Sección de Redes Sociales
+| Campo | Input | Obligatorio | Tabla de destino (futuro) |
+| :--- | :--- | :--- | :--- |
+| `instagram` | `Input type="text"` | No | `social_networks` |
+| `facebook` | `Input type="text"` | No | `social_networks` |
+
+#### Comportamiento del botón "Finalizar"
+1. Valida que `filledCount >= 2`. Si no, muestra `ErrorBanner` rojo.
+2. Emite `console.log("[MediaForm] Botón 'Finalizar' presionado.", { userId, fotosSeleccionadas, instagram, facebook })`.
+3. Redirige a `/dashboard` (ruta temporal hasta que el Dashboard sea construido).

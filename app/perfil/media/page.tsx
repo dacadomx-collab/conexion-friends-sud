@@ -2,19 +2,19 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
-import { ProfileFormWrapper } from "./ProfileFormWrapper"
+import { MediaFormWrapper } from "./MediaFormWrapper"
 
 export const metadata: Metadata = {
-  title: "Completa tu perfil — Conexion FRIENDS",
-  description: "Enchula tu perfil para conectar con otros Adultos Solteros SUD.",
+  title: "Fotos y Redes — Conexion FRIENDS",
+  description: "Sube tus fotos y añade tus redes sociales para completar tu perfil en Conexion FRIENDS.",
 }
 
 // -----------------------------------------------------------------------------
-// Página de perfil — Server Component
-// Captura el userId desde los Search Params y delega la interactividad
-// al Client Component ProfileFormWrapper (necesario por useSearchParams).
+// Página de fotos y redes sociales — Server Component
+// Paso 3 del onboarding: después de completar el perfil base (/perfil),
+// el usuario llega aquí para subir fotos y añadir redes sociales opcionales.
 // -----------------------------------------------------------------------------
-export default function PerfilPage() {
+export default function MediaPage() {
   return (
     <div className="min-h-screen bg-background">
 
@@ -33,12 +33,11 @@ export default function PerfilPage() {
         {/* Bienvenida */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-primary mb-2">
-            ¡Ya eres parte de la familia!
+            ¡Casi listo! Muéstrate al mundo.
           </h1>
           <p className="text-muted-foreground leading-relaxed">
-            Completa tu perfil para que otros Adultos Solteros SUD puedan conocerte
-            y conectar contigo. Tu información es privada y solo visible
-            para miembros aprobados.
+            Las fotos ayudan a los demás a conocerte antes de conectar contigo.
+            Sube entre 2 y 5 fotos que te representen fielmente y con dignidad.
           </p>
           <p className="text-sm text-muted-foreground italic mt-3">
             "…que sus corazones estuviesen entretejidos con unidad y amor
@@ -49,10 +48,10 @@ export default function PerfilPage() {
         {/* Formulario — necesita useSearchParams → Client Component envuelto en Suspense */}
         <Suspense fallback={
           <div className="flex justify-center py-12 text-muted-foreground text-sm">
-            Cargando formulario…
+            Cargando…
           </div>
         }>
-          <ProfileFormWrapper />
+          <MediaFormWrapper />
         </Suspense>
 
       </main>

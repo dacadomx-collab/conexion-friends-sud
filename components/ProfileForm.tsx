@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -73,6 +74,7 @@ const BIO_MAX = 500
 // Componente principal
 // ---------------------------------------------------------------------------
 export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps) {
+  const router = useRouter()
   const [formData, setFormData] = useState<FormData>({
     ...EMPTY_FORM,
     ...initialData,
@@ -134,6 +136,8 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
         const saved = result.data as ApiProfileData
         setSuccessMessage(result.message)
         onSuccess?.(saved)
+        // Redirigir a fotos y redes sociales tras 1.5 s de feedback visual
+        setTimeout(() => router.push(`/perfil/media?userId=${userId}`), 1500)
       } else {
         setApiError(result.message)
       }

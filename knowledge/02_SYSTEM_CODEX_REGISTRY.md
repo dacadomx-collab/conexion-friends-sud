@@ -51,6 +51,21 @@
 
 ## 🧩 REGISTRO DE COMPONENTES FRONTEND
 
+### Mapa de Rutas del Proyecto
+| Ruta | Archivo | Estado | Descripción |
+| :--- | :--- | :--- | :--- |
+| `/` | `app/page.tsx` | ✅ Activo | Landing + AuthForm (login/registro) |
+| `/perfil` | `app/perfil/page.tsx` | ✅ Activo | Paso 2 onboarding — datos de perfil |
+| `/perfil/media` | `app/perfil/media/page.tsx` | ✅ Activo | Paso 3 onboarding — fotos y redes |
+| `/dashboard` | `app/dashboard/page.tsx` | ✅ Activo | Sala principal tras login |
+| `/directorio` | — | 🔲 Pendiente | El BOOK — directorio de miembros |
+| `/mensajes` | — | 🔲 Pendiente | Avisos de administradores |
+| `/codigo-de-conducta` | `app/codigo-de-conducta/page.tsx` | ✅ Activo | Página legal |
+| `/terminos` | `app/terminos/page.tsx` | ✅ Activo | Página legal |
+| `/privacidad` | `app/privacidad/page.tsx` | ✅ Activo | Página legal |
+
+---
+
 ### Páginas Legales (Server Components estáticas)
 | Ruta | Archivo | Estado |
 | :--- | :--- | :--- |
@@ -61,6 +76,30 @@
 - Tono: SUD, amigable, basado en Mosíah 18:21.
 - Diseño: Mobile-first, `max-w-prose`, `ConexionLogo`, cabecera sticky, links cruzados entre páginas.
 - `privacidad/page.tsx` menciona explícitamente la inmutabilidad de `fullName` y `birthDate`.
+
+---
+
+### `DashboardClient.tsx` / `app/dashboard/page.tsx`
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta página** | `app/dashboard/page.tsx` |
+| **Ruta componente** | `components/DashboardClient.tsx` |
+| **Tipo** | Server Component (shell) + Client Component (lógica) |
+| **Estado** | ✅ Creado |
+| **Hito** | Sala Principal — post-login |
+
+#### Comportamiento
+- Lee `localStorage["cfs_session"]` al montar. Si no existe sesión válida → `router.replace("/")`.
+- Genera saludo dinámico: "Buenos días/tardes/noches, [PrimerNombre]" según la hora del dispositivo.
+- Botón **Salir** limpia `cfs_session` y redirige a `/`.
+
+#### Las 4 Tarjetas
+| # | Título | Destino | Estado |
+| :--- | :--- | :--- | :--- |
+| 1 | Tu Perfil | `/perfil?userId={id}` | ✅ Activo |
+| 2 | El BOOK | `/directorio` | 🔲 Ruta futura |
+| 3 | Actividades del grupo | `#` (deshabilitado) | 🚧 Badge "¡En construcción!" |
+| 4 | Mensajes | `/mensajes` | 🔲 Ruta futura |
 
 ---
 

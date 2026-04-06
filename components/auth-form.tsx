@@ -131,6 +131,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         // Persistir sesión: { id, fullName, email }
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(result.data))
         onSuccess?.()
+        router.push("/dashboard")
       } else {
         setLoginError(result.message ?? "Error desconocido del servidor.")
       }

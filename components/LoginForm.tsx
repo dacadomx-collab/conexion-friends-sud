@@ -84,10 +84,8 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(userData))
 
         onSuccess?.(userData)
-
-        if (redirectTo) {
-          router.push(redirectTo)
-        }
+        // Redirigir siempre al dashboard. redirectTo permite sobrescribir el destino.
+        router.push(redirectTo ?? "/dashboard")
       } else {
         setApiError(result.message)
       }

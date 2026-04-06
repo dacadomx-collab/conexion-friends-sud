@@ -13,6 +13,7 @@ import {
   MessageSquare,
   LogOut,
   ChevronRight,
+  Sparkles,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -24,6 +25,15 @@ interface SessionData {
   id:       number
   fullName: string
   email:    string
+}
+
+interface ScriptureData {
+  id:            number
+  userId:        number
+  fullName:      string
+  scriptureText: string
+  reference:     string
+  scheduledDate: string
 }
 
 // ---------------------------------------------------------------------------
@@ -80,14 +90,14 @@ const CARDS: DashCard[] = [
 // ---------------------------------------------------------------------------
 export function DashboardClient() {
   const router = useRouter()
-  const [session, setSession] = useState<SessionData | null>(null)
-  const [greeting, setGreeting] = useState("¡Bienvenido al Cuartel General!")
+  const [session,   setSession]   = useState<SessionData | null>(null)
+  const [greeting,  setGreeting]  = useState("¡Bienvenido al Cuartel General!")
+  const [scripture, setScripture] = useState<ScriptureData | null | "loading">("loading")
 
-  // Leer sesión de localStorage (client-side only)
+  // ── Leer sesión de localStorage (client-side only) ────────────────────────
   useEffect(() => {
     const raw = localStorage.getItem(CFS_SESSION_KEY)
     if (!raw) {
-      // Sin sesión → volver al inicio
       router.replace("/")
       return
     }
@@ -106,6 +116,17 @@ export function DashboardClient() {
       router.replace("/")
     }
   }, [router])
+
+  // ── Cargar escritura del día ──────────────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/get_today_scripture.php")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.status === "success") setScripture(json.data ?? null)
+        else setScripture(null)
+      })
+      .catch(() => setScripture(null))
+  }, [])
 
   function handleLogout() {
     localStorage.removeItem(CFS_SESSION_KEY)
@@ -150,6 +171,58 @@ export function DashboardClient() {
             "…que sus corazones estuviesen entretejidos con unidad y amor
             los unos para con los otros." — Mosíah 18:21
           </p>
+        </div>
+
+        {/* ── Escritura del Día ── */}
+        <div className="mb-6">
+          {scripture === "loading" ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-muted-foreground text-sm">
+              <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              Cargando escritura del día…
+            </div>
+          ) : scripture ? (
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 dark:bg-primary/10 px-6 py-5 shadow-sm">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary/70 mb-3">
+                <Sparkles className="h-3.5 w-3.5" />
+                Escritura del Día
+              </p>
+              <blockquote className="text-foreground leading-relaxed italic text-base border-l-2 border-primary/40 pl-4">
+                "{scripture.scriptureText}"
+              </blockquote>
+              <p className="mt-3 text-sm font-semibold text-primary">
+                — {scripture.reference}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Compartida por{" "}
+                <Link
+                  href={`/perfil?userId=${scripture.userId}`}
+                  className="text-primary hover:underline underline-offset-4 font-medium"
+                >
+                  {scripture.fullName}
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-6 py-5 text-center">
+              <p className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-primary/70 mb-2">
+                <Sparkles className="h-3.5 w-3.5" />
+                Escritura del Día
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Hoy no hay escritura todavía. ¡Sé el primero en compartir una!
+              </p>
+            </div>
+          )}
+
+          {/* Botón compartir escritura */}
+          <div className="mt-3 flex justify-center">
+            <Link
+              href="/inspiracion"
+              className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
+            >
+              📖 Compartir una Escritura
+            </Link>
+          </div>
         </div>
 
         {/* ── Grid de tarjetas ── */}

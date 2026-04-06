@@ -2,20 +2,20 @@ import type { Metadata } from "next"
 import { Suspense } from "react"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
-import { ProfileFormWrapper } from "./ProfileFormWrapper"
+import { ScriptureForm } from "@/components/ScriptureForm"
 import { ProfileNavActions } from "@/components/ProfileNavActions"
 
 export const metadata: Metadata = {
-  title: "Completa tu perfil — Conexion FRIENDS",
-  description: "Enchula tu perfil para conectar con otros Adultos Solteros SUD.",
+  title: "Inspiración — Conexion FRIENDS",
+  description: "Comparte una escritura con la comunidad y conviértete en la Escritura del Día.",
 }
 
 // -----------------------------------------------------------------------------
-// Página de perfil — Server Component
-// Captura el userId desde los Search Params y delega la interactividad
-// al Client Component ProfileFormWrapper (necesario por useSearchParams).
+// Página de Inspiración Diaria — Server Component
+// Permite a los miembros enviar escrituras a la cola de "Escritura del Día".
+// Muestra la fila de espera con la fecha exacta de publicación.
 // -----------------------------------------------------------------------------
-export default function PerfilPage() {
+export default function InspiracionPage() {
   return (
     <div className="min-h-screen bg-background">
 
@@ -35,26 +35,25 @@ export default function PerfilPage() {
         {/* Bienvenida */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-primary mb-2">
-            ¡Ya eres parte de la familia!
+            Escritura del Día
           </h1>
           <p className="text-muted-foreground leading-relaxed">
-            Completa tu perfil para que otros Adultos Solteros SUD puedan conocerte
-            y conectar contigo. Tu información es privada y solo visible
-            para miembros aprobados.
+            Comparte un versículo que haya iluminado tu camino. Cada día,
+            una escritura diferente aparecerá en el dashboard de toda la comunidad.
           </p>
           <p className="text-sm text-muted-foreground italic mt-3">
-            "…que sus corazones estuviesen entretejidos con unidad y amor
-            los unos para con los otros." — Mosíah 18:21
+            "…el que guarda los mandamientos de Dios tiene la necesidad de
+            tener esperanza." — Moroni 7:41
           </p>
         </div>
 
-        {/* Formulario — necesita useSearchParams → Client Component envuelto en Suspense */}
+        {/* Formulario — Client Component; Suspense para useEffect seguro */}
         <Suspense fallback={
           <div className="flex justify-center py-12 text-muted-foreground text-sm">
-            Cargando formulario…
+            Cargando…
           </div>
         }>
-          <ProfileFormWrapper />
+          <ScriptureForm />
         </Suspense>
 
       </main>

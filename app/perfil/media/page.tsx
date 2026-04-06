@@ -3,6 +3,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
 import { MediaFormWrapper } from "./MediaFormWrapper"
+import { ProfileNavActions } from "@/components/ProfileNavActions"
 
 export const metadata: Metadata = {
   title: "Fotos y Redes — Conexion FRIENDS",
@@ -24,6 +25,7 @@ export default function MediaPage() {
           <Link href="/" aria-label="Volver al inicio">
             <ConexionLogo size={36} />
           </Link>
+          <ProfileNavActions />
         </div>
       </header>
 

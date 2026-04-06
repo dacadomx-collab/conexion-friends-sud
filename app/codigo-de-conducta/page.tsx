@@ -87,8 +87,7 @@ export default function CodigoDeConductaPage() {
 
         {/* Intro */}
         <p className="mb-10 text-base leading-relaxed text-foreground">
-          Conexion FRIENDS es un directorio de hermandad para miembros y amigos de La
-          Iglesia de Jesucristo de los Santos de los Últimos Días. No somos una app de
+          Conexion FRIENDS es un directorio de hermandad para miembros del grupo de WhatsApp de Iglesia de Jesucristo de los Santos de los Últimos Días. No somos una app de
           citas secular. Somos una comunidad que se trata como familia del convenio.
           Las siguientes reglas no son opcionales: son el corazón de lo que somos.
         </p>
@@ -100,8 +99,8 @@ export default function CodigoDeConductaPage() {
             Conexión FRIENDS existe para edificar la fe, fortalecer amistades y conectar a la gran familia SUD. Nuestro mayor deseo es crear un entorno seguro donde puedan nacer conexiones significativas que, con el tiempo y bajo los principios del Evangelio, puedan florecer hacia la meta eterna del matrimonio en el Templo.
           </Rule> 
            <Rule>
-              Toda interacción debe poder describirse así: "Lo trataría igual frente al
-              obispo o la presidenta de la Sociedad de Socorro."
+              Toda interacción debe poder describirse así: "Lo trataría igual en precensia
+              de el Salvador."
             </Rule>
             <Rule>
               Las conexiones que aquí nazcan deben apuntar hacia actividades que

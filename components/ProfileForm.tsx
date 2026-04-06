@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -79,9 +79,32 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
     ...EMPTY_FORM,
     ...initialData,
   })
-  const [isLoading, setIsLoading] = useState(false)
-  const [apiError, setApiError] = useState<string | null>(null)
+  const [isLoading,    setIsLoading]    = useState(false)
+  const [isHydrating,  setIsHydrating]  = useState(true)   // carga inicial desde API
+  const [apiError,     setApiError]     = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // ── Hidratación: cargar datos existentes del perfil ─────────────────────────
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const res  = await fetch(`/api/get_profile.php?userId=${userId}`)
+        const text = await res.text()
+        let   json: { status: string; data?: Partial<FormData> }
+        try   { json = JSON.parse(text) }
+        catch { return }   // si la respuesta no es JSON, ignorar silenciosamente
+
+        if (json.status === 'success' && json.data) {
+          setFormData((prev) => ({ ...prev, ...json.data }))
+        }
+      } catch {
+        // Error de red — el formulario queda vacío; el usuario puede igualmente rellenarlo
+      } finally {
+        setIsHydrating(false)
+      }
+    }
+    loadProfile()
+  }, [userId])
 
   // -------------------------------------------------------------------------
   // Helpers de estado
@@ -147,6 +170,18 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // ── Skeleton durante la hidratación ─────────────────────────────────────────
+  if (isHydrating) {
+    return (
+      <Card className="w-full max-w-lg border-0 shadow-xl bg-card/95 backdrop-blur">
+        <CardContent className="p-8 flex flex-col items-center gap-3 text-muted-foreground text-sm">
+          <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          Cargando tu perfil…
+        </CardContent>
+      </Card>
+    )
   }
 
   // -------------------------------------------------------------------------

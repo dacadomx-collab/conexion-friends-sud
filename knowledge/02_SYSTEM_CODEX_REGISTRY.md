@@ -32,6 +32,27 @@
 - `accepted_code_of_conduct`: TINYINT(1) — Siempre 1 al registro
 - `created_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
+### Tabla: `social_networks`
+- `user_id`: INT — FK → `users.id` + `network_type` forman el UNIQUE KEY
+- `network_type`: VARCHAR(50) — Valores: `'instagram'`, `'facebook'`
+- `handle`: VARCHAR(100) — Handle/nombre de usuario en la red (sin `@`)
+- `updated_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+### Tabla: `profile_photos`
+- `id`: INT AUTO_INCREMENT — Clave primaria
+- `user_id`: INT — FK → `users.id`
+- `photo_url`: VARCHAR(300) — Ruta pública relativa `/uploads/profiles/user_{id}_{time}_{idx}.ext`
+- `sort_order`: INT — 1 = foto principal; máx. 5 fotos por usuario
+- `created_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+### Tabla: `daily_scriptures` *(Migración 02)*
+- `id`: INT AUTO_INCREMENT — Clave primaria
+- `user_id`: INT — FK → `users.id` ON DELETE CASCADE
+- `scripture_text`: TEXT — Texto completo del versículo (máx. 3 000 chars, validado en backend)
+- `reference`: VARCHAR(200) — Referencia (ej. "Mosíah 18:21")
+- `scheduled_date`: DATE — Fecha de publicación; UNIQUE KEY `uq_scheduled_date` garantiza una escritura por día
+- `created_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
 ### Tabla: `profiles`
 - `user_id`: INT — FK → `users.id` (UNIQUE, clave del ON DUPLICATE KEY UPDATE)
 - `ward`: VARCHAR(100) — Barrio del miembro
@@ -63,6 +84,7 @@
 | `/codigo-de-conducta` | `app/codigo-de-conducta/page.tsx` | ✅ Activo | Página legal |
 | `/terminos` | `app/terminos/page.tsx` | ✅ Activo | Página legal |
 | `/privacidad` | `app/privacidad/page.tsx` | ✅ Activo | Página legal |
+| `/inspiracion` | `app/inspiracion/page.tsx` | ✅ Activo | Formulario de escritura + cola de espera |
 
 ---
 
@@ -202,5 +224,47 @@ Tras un guardado exitoso, muestra el mensaje verde durante **1 500 ms** y luego 
 
 #### Comportamiento del botón "Finalizar"
 1. Valida que `filledCount >= 2`. Si no, muestra `ErrorBanner` rojo.
-2. Emite `console.log("[MediaForm] Botón 'Finalizar' presionado.", { userId, fotosSeleccionadas, instagram, facebook })`.
-3. Redirige a `/dashboard` (ruta temporal hasta que el Dashboard sea construido).
+2. Llama a `POST /api/update_social.php` con `{ userId, instagram, facebook }` (JSON).
+3. Llama a `POST /api/upload_photos.php` con `FormData` → campo `photos[]`.
+4. Solo redirige a `/dashboard` cuando ambos endpoints responden `status: success`.
+
+---
+
+### `ProfileNavActions.tsx`
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta** | `components/ProfileNavActions.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Usado en** | `app/perfil/page.tsx`, `app/perfil/media/page.tsx`, `app/inspiracion/page.tsx` |
+| **Estado** | ✅ Activo |
+
+Dos botones compactos en el header: "Dashboard" (Link a `/dashboard`) y "Salir" (limpia `cfs_session` + `router.push("/")`).
+
+---
+
+### `ScriptureForm.tsx`
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta** | `components/ScriptureForm.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Página** | `app/inspiracion/page.tsx` |
+| **Estado** | ✅ Activo |
+| **Endpoints** | `POST /api/submit_scripture.php` · `GET /api/get_scripture_queue.php` |
+
+Lee `userId` de `localStorage["cfs_session"]`. Envía texto + referencia. Tras éxito muestra la fecha asignada y refresca la cola de espera.
+
+---
+
+## 🔌 REGISTRO DE ENDPOINTS API
+
+| Endpoint | Método | Descripción |
+| :--- | :--- | :--- |
+| `api/register.php` | POST JSON | Registro de nuevo usuario |
+| `api/login.php` | POST JSON | Login; devuelve `{id, fullName, email}` |
+| `api/update_profile.php` | POST JSON | UPSERT en tabla `profiles` |
+| `api/get_profile.php` | GET `?userId=` | Devuelve `users + profiles + social_networks` (hidratación del formulario) |
+| `api/update_social.php` | POST JSON | UPSERT de `instagram` / `facebook` en `social_networks` |
+| `api/upload_photos.php` | POST multipart | Valida, guarda físicamente y registra en `profile_photos` |
+| `api/submit_scripture.php` | POST JSON | Añade escritura a la cola; calcula `scheduled_date` automáticamente |
+| `api/get_today_scripture.php` | GET | Devuelve escritura de `scheduled_date = CURDATE()` |
+| `api/get_scripture_queue.php` | GET | Lista escrituras con `scheduled_date >= CURDATE()` (máx. 60) |

@@ -37,7 +37,7 @@ interface ScriptureData {
 }
 
 // ---------------------------------------------------------------------------
-// Tipos de las tarjetas de navegación
+// Tipos de las tarjetas de navegación (todas excepto "Tu Perfil")
 // ---------------------------------------------------------------------------
 interface DashCard {
   icon:        React.ReactNode
@@ -49,17 +49,7 @@ interface DashCard {
   disabled?:   boolean
 }
 
-// ---------------------------------------------------------------------------
-// Definición de las 4 tarjetas
-// ---------------------------------------------------------------------------
 const CARDS: DashCard[] = [
-  {
-    icon:        <UserCircle className="h-7 w-7" />,
-    iconBg:      "bg-primary/10 text-primary",
-    title:       "Tu Perfil",
-    description: "Edita tu información, fotos y redes sociales.",
-    href:        "/perfil",   // se añade ?userId= dinámicamente en el render
-  },
   {
     icon:        <BookOpen className="h-7 w-7" />,
     iconBg:      "bg-turquoise/10 text-turquoise",
@@ -225,15 +215,40 @@ export function DashboardClient() {
           </div>
         </div>
 
+        {/* ── Tarjeta especial: Tu Perfil (con dos botones internos) ── */}
+        <Card className="border border-border/60 shadow-sm mb-4">
+          <CardContent className="p-5 flex items-start gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0 bg-primary/10 text-primary">
+              <UserCircle className="h-7 w-7" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold text-foreground leading-tight mb-0.5">
+                Tu Perfil
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                Edita tu información, fotos y redes sociales.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={session ? `/perfil?userId=${session.id}` : "/perfil"}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 hover:bg-primary/90 transition-colors"
+                >
+                  📝 Editar Datos
+                </Link>
+                <Link
+                  href={session ? `/perfil/media?userId=${session.id}` : "/perfil/media"}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary text-foreground text-xs font-semibold px-3 py-1.5 hover:bg-secondary/80 transition-colors"
+                >
+                  📸 Fotos y Redes
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ── Grid de tarjetas ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {CARDS.map((card) => {
-            // Para el perfil, añadir el userId como query param
-            const href =
-              card.title === "Tu Perfil" && session
-                ? `/perfil?userId=${session.id}`
-                : card.href
-
             const inner = (
               <Card
                 className={[
@@ -244,14 +259,9 @@ export function DashboardClient() {
                 ].join(" ")}
               >
                 <CardContent className="p-5 flex items-start gap-4">
-                  {/* Icono */}
-                  <div
-                    className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${card.iconBg}`}
-                  >
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl shrink-0 ${card.iconBg}`}>
                     {card.icon}
                   </div>
-
-                  {/* Texto */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h2 className="text-base font-semibold text-foreground leading-tight">
@@ -270,8 +280,6 @@ export function DashboardClient() {
                       {card.description}
                     </p>
                   </div>
-
-                  {/* Flecha — solo si no está deshabilitada */}
                   {!card.disabled && (
                     <ChevronRight className="h-5 w-5 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                   )}
@@ -282,7 +290,7 @@ export function DashboardClient() {
             return card.disabled ? (
               <div key={card.title}>{inner}</div>
             ) : (
-              <Link key={card.title} href={href} className="block">
+              <Link key={card.title} href={card.href} className="block">
                 {inner}
               </Link>
             )

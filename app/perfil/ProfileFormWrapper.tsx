@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation"
 import { ProfileForm } from "@/components/ProfileForm"
+import { ProfileTabs } from "@/components/ProfileTabs"
 
 // -----------------------------------------------------------------------------
 // ProfileFormWrapper — Client Component
@@ -33,12 +34,12 @@ export function ProfileFormWrapper() {
   }
 
   return (
-    <ProfileForm
-      userId={userId}
-      onSuccess={() => {
-        // Aquí se puede redirigir al muro o al perfil público en el futuro.
-        // Por ahora el mensaje de éxito del propio ProfileForm es suficiente.
-      }}
-    />
+    <>
+      <ProfileTabs userId={userId} />
+      <ProfileForm
+        userId={userId}
+        onSuccess={() => {}}
+      />
+    </>
   )
 }

@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import { ProfileForm } from "@/components/ProfileForm"
 import { ProfileTabs } from "@/components/ProfileTabs"
+import { UserContextHeader } from "@/components/UserContextHeader"
 
 // -----------------------------------------------------------------------------
 // ProfileFormWrapper — Client Component
@@ -35,6 +36,7 @@ export function ProfileFormWrapper() {
 
   return (
     <>
+      <UserContextHeader />
       <ProfileTabs userId={userId} />
       <ProfileForm
         userId={userId}

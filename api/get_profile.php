@@ -4,9 +4,12 @@
 // =============================================================================
 // Método : GET
 // Params : ?userId=INT
-// Returns: { status, data: { userId, fullName, email, ward, stake, bio,
-//             showWhatsapp, country, state, city, instagram, facebook } }
-// JOINs  : users + profiles (LEFT) + social_networks (LEFT, agrupadas)
+// Returns: { status, data: {
+//     userId, fullName, email,
+//     ward, stake, bio, showWhatsapp, country, state, city,
+//     socials: { instagram, facebook, linkedin, twitter, tiktok, website },
+//     photos:  [ { photoUrl, sortOrder }, ... ]   ← ordenadas por sort_order
+// }}
 // =============================================================================
 
 declare(strict_types=1);
@@ -36,16 +39,16 @@ try {
 }
 
 try {
-    // ── Datos base: users + profiles ─────────────────────────────────────────
+    // ── 1. Datos base: users + profiles ───────────────────────────────────────
     $stmt = $pdo->prepare('
         SELECT
-            u.id            AS userId,
-            u.full_name     AS fullName,
+            u.id                             AS userId,
+            u.full_name                      AS fullName,
             u.email,
-            COALESCE(p.ward,          \'\')    AS ward,
-            COALESCE(p.stake,         \'\')    AS stake,
-            COALESCE(p.bio,           \'\')    AS bio,
-            COALESCE(p.show_whatsapp, 0)      AS showWhatsapp,
+            COALESCE(p.ward,   \'\')         AS ward,
+            COALESCE(p.stake,  \'\')         AS stake,
+            COALESCE(p.bio,    \'\')         AS bio,
+            COALESCE(p.show_whatsapp, 0)     AS showWhatsapp,
             p.country,
             p.state,
             p.city
@@ -63,11 +66,10 @@ try {
         exit;
     }
 
-    // Castear tipos correctos
     $row['userId']       = (int)  $row['userId'];
     $row['showWhatsapp'] = (bool) $row['showWhatsapp'];
 
-    // ── Redes sociales ────────────────────────────────────────────────────────
+    // ── 2. Redes sociales → objeto keyed por network_type ─────────────────────
     $stmtSoc = $pdo->prepare('
         SELECT network_type, handle
         FROM social_networks
@@ -76,12 +78,37 @@ try {
     $stmtSoc->execute([':userId' => $userId]);
     $socRows = $stmtSoc->fetchAll(PDO::FETCH_ASSOC);
 
-    $row['instagram'] = '';
-    $row['facebook']  = '';
+    $socials = [
+        'instagram' => '',
+        'facebook'  => '',
+        'linkedin'  => '',
+        'twitter'   => '',
+        'tiktok'    => '',
+        'website'   => '',
+    ];
     foreach ($socRows as $soc) {
-        if ($soc['network_type'] === 'instagram') $row['instagram'] = $soc['handle'];
-        if ($soc['network_type'] === 'facebook')  $row['facebook']  = $soc['handle'];
+        if (isset($socials[$soc['network_type']])) {
+            $socials[$soc['network_type']] = $soc['handle'];
+        }
     }
+    $row['socials'] = $socials;
+
+    // ── 3. Fotos de perfil ordenadas por sort_order ───────────────────────────
+    $stmtPh = $pdo->prepare('
+        SELECT photo_url AS photoUrl, sort_order AS sortOrder
+        FROM profile_photos
+        WHERE user_id = :userId
+        ORDER BY sort_order ASC
+    ');
+    $stmtPh->execute([':userId' => $userId]);
+    $photos = $stmtPh->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($photos as &$ph) {
+        $ph['sortOrder'] = (int) $ph['sortOrder'];
+    }
+    unset($ph);
+
+    $row['photos'] = $photos;
 
     echo json_encode(['status' => 'success', 'data' => $row]);
 

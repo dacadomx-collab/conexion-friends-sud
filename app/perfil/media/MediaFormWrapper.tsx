@@ -3,6 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation"
 import { MediaForm } from "@/components/MediaForm"
 import { ProfileTabs } from "@/components/ProfileTabs"
+import { UserContextHeader } from "@/components/UserContextHeader"
 
 // -----------------------------------------------------------------------------
 // MediaFormWrapper — Client Component
@@ -33,6 +34,7 @@ export function MediaFormWrapper() {
 
   return (
     <>
+      <UserContextHeader />
       <ProfileTabs userId={userId} />
       <MediaForm userId={userId} />
     </>

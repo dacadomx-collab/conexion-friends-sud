@@ -92,7 +92,7 @@ export function ScriptureForm() {
       return
     }
     if (reference.trim().length < 2) {
-      setError("La referencia es obligatoria (ej. "Mosíah 18:21").")
+      setError('La referencia es obligatoria (ej. "Mosíah 18:21").')
       return
     }
 

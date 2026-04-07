@@ -11,7 +11,18 @@ import {
   FieldLabel,
   FieldDescription,
 } from "@/components/ui/field"
-import { Images, Instagram, Facebook, Upload, X, AlertTriangle } from "lucide-react"
+import {
+  Images,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Twitter,
+  Music2,
+  Globe,
+  Upload,
+  X,
+  AlertTriangle,
+} from "lucide-react"
 
 // ---------------------------------------------------------------------------
 // Reglas de negocio de fotos (Codex: tabla profile_photos)
@@ -46,12 +57,16 @@ export function MediaForm({ userId }: MediaFormProps) {
   const router = useRouter()
 
   // ── Fotos
-  const [slots,    setSlots]    = useState<PhotoSlot[]>(createEmptySlots)
-  const fileRefs   = useRef<(HTMLInputElement | null)[]>([])
+  const [slots,  setSlots] = useState<PhotoSlot[]>(createEmptySlots)
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([])
 
   // ── Redes sociales
   const [instagram, setInstagram] = useState("")
   const [facebook,  setFacebook]  = useState("")
+  const [linkedin,  setLinkedin]  = useState("")
+  const [twitter,   setTwitter]   = useState("")
+  const [tiktok,    setTiktok]    = useState("")
+  const [website,   setWebsite]   = useState("")
 
   // ── UI
   const [error,     setError]     = useState<string | null>(null)
@@ -64,7 +79,6 @@ export function MediaForm({ userId }: MediaFormProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Revocar preview anterior si existe
     const prev = slots.find((s) => s.id === slotId)?.preview
     if (prev) URL.revokeObjectURL(prev)
 
@@ -95,11 +109,11 @@ export function MediaForm({ userId }: MediaFormProps) {
     setIsLoading(true)
 
     try {
-      // ── 1. Redes sociales (JSON) ──────────────────────────────────────────
+      // ── 1. Redes sociales (JSON) ────────────────────────────────────────────
       const socialRes  = await fetch("/api/update_social.php", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ userId, instagram, facebook }),
+        body:    JSON.stringify({ userId, instagram, facebook, linkedin, twitter, tiktok, website }),
       })
       const socialText = await socialRes.text()
       let   socialJson: { status: string; message: string }
@@ -107,7 +121,7 @@ export function MediaForm({ userId }: MediaFormProps) {
       catch { throw new Error(`Error del servidor (${socialRes.status}): ${socialText.slice(0, 200)}`) }
       if (socialJson.status !== "success") throw new Error(socialJson.message)
 
-      // ── 2. Fotos (multipart/form-data) ────────────────────────────────────
+      // ── 2. Fotos (multipart/form-data) ──────────────────────────────────────
       const formData = new FormData()
       formData.append("userId", String(userId))
       slots
@@ -124,7 +138,7 @@ export function MediaForm({ userId }: MediaFormProps) {
       catch { throw new Error(`Error del servidor (${photosRes.status}): ${photosText.slice(0, 200)}`) }
       if (photosJson.status !== "success") throw new Error(photosJson.message)
 
-      // ── 3. Éxito: redirigir ───────────────────────────────────────────────
+      // ── 3. Éxito → dashboard ────────────────────────────────────────────────
       router.push("/dashboard")
 
     } catch (err) {
@@ -161,7 +175,7 @@ export function MediaForm({ userId }: MediaFormProps) {
                 <div key={slot.id} className="relative aspect-square">
 
                   {slot.preview ? (
-                    /* ── Slot ocupado: muestra preview ── */
+                    /* ── Slot ocupado ── */
                     <div className="relative h-full w-full rounded-xl overflow-hidden border-2 border-primary/40 shadow-sm">
                       <img
                         src={slot.preview}
@@ -183,7 +197,7 @@ export function MediaForm({ userId }: MediaFormProps) {
                       </button>
                     </div>
                   ) : (
-                    /* ── Slot vacío: dropzone visual ── */
+                    /* ── Slot vacío ── */
                     <button
                       type="button"
                       onClick={() => fileRefs.current[idx]?.click()}
@@ -197,12 +211,8 @@ export function MediaForm({ userId }: MediaFormProps) {
                       ].join(" ")}
                       aria-label={`Subir foto ${idx + 1}${isRequired ? " (obligatoria)" : " (opcional)"}`}
                     >
-                      <Upload
-                        className={`h-6 w-6 ${isRequired ? "text-primary/60" : "text-muted-foreground"}`}
-                      />
-                      <span
-                        className={`text-xs font-medium ${isRequired ? "text-primary/70" : "text-muted-foreground"}`}
-                      >
+                      <Upload className={`h-6 w-6 ${isRequired ? "text-primary/60" : "text-muted-foreground"}`} />
+                      <span className={`text-xs font-medium ${isRequired ? "text-primary/70" : "text-muted-foreground"}`}>
                         {idx === 0 ? "Principal" : isRequired ? `Foto ${idx + 1}` : "Opcional"}
                       </span>
                     </button>
@@ -240,7 +250,7 @@ export function MediaForm({ userId }: MediaFormProps) {
             Redes Sociales
           </CardTitle>
           <CardDescription>
-            Opcionales. Solo comparte lo que te haga sentir cómodo.
+            Todas opcionales. Solo comparte lo que te haga sentir cómodo.
           </CardDescription>
         </CardHeader>
 
@@ -252,9 +262,7 @@ export function MediaForm({ userId }: MediaFormProps) {
               <FieldLabel htmlFor="media-instagram">Instagram</FieldLabel>
               <div className="relative" suppressHydrationWarning>
                 <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/70 pointer-events-none select-none">
-                  @
-                </span>
+                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/70 pointer-events-none select-none">@</span>
                 <Input
                   id="media-instagram"
                   type="text"
@@ -266,9 +274,7 @@ export function MediaForm({ userId }: MediaFormProps) {
                   autoComplete="off"
                 />
               </div>
-              <FieldDescription className="text-xs">
-                Solo el nombre de usuario, sin arroba.
-              </FieldDescription>
+              <FieldDescription className="text-xs">Sin arroba.</FieldDescription>
             </Field>
 
             {/* ── Facebook ── */}
@@ -287,6 +293,84 @@ export function MediaForm({ userId }: MediaFormProps) {
                   autoComplete="off"
                 />
               </div>
+            </Field>
+
+            {/* ── LinkedIn ── */}
+            <Field>
+              <FieldLabel htmlFor="media-linkedin">LinkedIn</FieldLabel>
+              <div className="relative" suppressHydrationWarning>
+                <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="media-linkedin"
+                  type="url"
+                  placeholder="https://linkedin.com/in/tu-perfil"
+                  className="pl-10"
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  maxLength={200}
+                  autoComplete="off"
+                />
+              </div>
+              <FieldDescription className="text-xs">URL completa de tu perfil de LinkedIn.</FieldDescription>
+            </Field>
+
+            {/* ── X (Twitter) ── */}
+            <Field>
+              <FieldLabel htmlFor="media-twitter">X (Twitter)</FieldLabel>
+              <div className="relative" suppressHydrationWarning>
+                <Twitter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/70 pointer-events-none select-none">@</span>
+                <Input
+                  id="media-twitter"
+                  type="text"
+                  placeholder="nombreusuario"
+                  className="pl-[3.25rem]"
+                  value={twitter}
+                  onChange={(e) => setTwitter(e.target.value.replace(/^@+/, ""))}
+                  maxLength={60}
+                  autoComplete="off"
+                />
+              </div>
+              <FieldDescription className="text-xs">Sin arroba.</FieldDescription>
+            </Field>
+
+            {/* ── TikTok ── */}
+            <Field>
+              <FieldLabel htmlFor="media-tiktok">TikTok</FieldLabel>
+              <div className="relative" suppressHydrationWarning>
+                <Music2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm text-muted-foreground/70 pointer-events-none select-none">@</span>
+                <Input
+                  id="media-tiktok"
+                  type="text"
+                  placeholder="nombreusuario"
+                  className="pl-[3.25rem]"
+                  value={tiktok}
+                  onChange={(e) => setTiktok(e.target.value.replace(/^@+/, ""))}
+                  maxLength={60}
+                  autoComplete="off"
+                />
+              </div>
+              <FieldDescription className="text-xs">Sin arroba.</FieldDescription>
+            </Field>
+
+            {/* ── Sitio Web ── */}
+            <Field>
+              <FieldLabel htmlFor="media-website">Sitio Web</FieldLabel>
+              <div className="relative" suppressHydrationWarning>
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  id="media-website"
+                  type="url"
+                  placeholder="https://tu-sitio.com"
+                  className="pl-10"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  maxLength={200}
+                  autoComplete="off"
+                />
+              </div>
+              <FieldDescription className="text-xs">URL completa incluyendo https://</FieldDescription>
             </Field>
 
           </FieldGroup>

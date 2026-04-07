@@ -102,6 +102,17 @@ try {
             exit;
         }
 
+        // ── Capa extra: validar extensión del nombre original ─────────────────
+        $ext = strtolower((string) pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($ext, ALLOWED_EXT, true)) {
+            http_response_code(400);
+            echo json_encode([
+                'status'  => 'error',
+                'message' => "Foto #{$pos}: el formato '.{$ext}' no está permitido. Usa JPG, PNG o WebP.",
+            ]);
+            exit;
+        }
+
         if ($file['size'] > MAX_FILE_SIZE) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => "La foto #{$pos} supera el límite de 15 MB."]);

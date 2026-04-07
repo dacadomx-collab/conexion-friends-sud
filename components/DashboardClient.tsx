@@ -47,6 +47,7 @@ interface DashCard {
   href:        string
   badge?:      string
   disabled?:   boolean
+  comingSoon?: boolean   // muestra alert en lugar de navegar
 }
 
 const CARDS: DashCard[] = [
@@ -56,6 +57,9 @@ const CARDS: DashCard[] = [
     title:       "El BOOK",
     description: "Explora el directorio de Adultos Solteros SUD y conecta con la hermandad.",
     href:        "/directorio",
+    badge:       "Próximamente",
+    comingSoon:  true,
+    disabled:    true,
   },
   {
     icon:        <Tent className="h-7 w-7" />,
@@ -72,6 +76,9 @@ const CARDS: DashCard[] = [
     title:       "Mensajes",
     description: "Avisos y comunicados oficiales de los administradores.",
     href:        "/mensajes",
+    badge:       "Próximamente",
+    comingSoon:  true,
+    disabled:    true,
   },
 ]
 
@@ -286,6 +293,19 @@ export function DashboardClient() {
                 </CardContent>
               </Card>
             )
+
+            if (card.comingSoon) {
+              return (
+                <button
+                  key={card.title}
+                  type="button"
+                  className="block w-full text-left"
+                  onClick={() => alert("¡Próximamente! Estamos preparando esta sección para ti.")}
+                >
+                  {inner}
+                </button>
+              )
+            }
 
             return card.disabled ? (
               <div key={card.title}>{inner}</div>

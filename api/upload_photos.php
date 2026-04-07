@@ -1,29 +1,37 @@
 <?php
 // =============================================================================
-// api/upload_photos.php — Subir fotos de perfil
+// api/upload_photos.php — Subir, comprimir y guardar fotos de perfil
 // =============================================================================
 // Método : POST (multipart/form-data)
 // Campos : $_POST['userId'] (int)
 //          $_FILES['photos'] (múltiples, name="photos[]")
-// Destino: __DIR__ . '/../uploads/profiles/'  (uploads/ en la raíz del proyecto)
-// Tabla  : profile_photos (user_id, photo_url, sort_order)
+// Proceso: Valida con getimagesize() → carga con GD → redimensiona si >1080px
+//          → guarda SIEMPRE como .jpg calidad 80 → registra en profile_photos
+// Destino: __DIR__ . '/../uploads/profiles/'
 // =============================================================================
 
 declare(strict_types=1);
 
-// ── Constantes de validación (deben estar FUERA del try para ser globales) ────
-const MAX_FILE_SIZE = 5 * 1024 * 1024;   // 5 MB
-const MAX_PHOTOS    = 5;
-const MIN_PHOTOS    = 2;
-const ALLOWED_MIME  = ['image/jpeg', 'image/png', 'image/webp'];
-const ALLOWED_EXT   = ['jpg', 'jpeg', 'png', 'webp'];
+// ── Constantes globales (fuera del try) ───────────────────────────────────────
+const MAX_FILE_SIZE  = 15 * 1024 * 1024;   // 15 MB límite de subida raw
+const MAX_PHOTOS     = 5;
+const MIN_PHOTOS     = 2;
+const MAX_DIMENSION  = 1080;               // px — redimensiona si supera esto
+const JPEG_QUALITY   = 80;                 // calidad de compresión final
 
-// Convertir errores de PHP (warnings, notices) en excepciones capturables
+// Mapa MIME → función de carga GD
+const GD_LOADERS = [
+    IMAGETYPE_JPEG => 'imagecreatefromjpeg',
+    IMAGETYPE_PNG  => 'imagecreatefrompng',
+    IMAGETYPE_WEBP => 'imagecreatefromwebp',
+];
+
+// Convertir warnings/notices de PHP en excepciones capturables
 set_error_handler(function (int $errno, string $errstr): bool {
-    throw new \RuntimeException($errstr, $errno);
+    throw new \RuntimeException("[PHP Warning #{$errno}] {$errstr}");
 });
 
-// ── BLOQUE GLOBAL — captura CUALQUIER Throwable (Error + Exception) ────────────
+// ── BLOQUE GLOBAL ─────────────────────────────────────────────────────────────
 try {
 
     require_once __DIR__ . '/conexion.php';
@@ -35,6 +43,11 @@ try {
         exit;
     }
 
+    // ── Verificar extensión GD ─────────────────────────────────────────────────
+    if (!extension_loaded('gd')) {
+        throw new \RuntimeException('La extensión GD de PHP no está disponible en el servidor.');
+    }
+
     // ── Validar userId ─────────────────────────────────────────────────────────
     $userId = isset($_POST['userId']) ? (int) $_POST['userId'] : 0;
     if ($userId <= 0) {
@@ -43,23 +56,21 @@ try {
         exit;
     }
 
-    // ── Verificar que llegaron archivos ────────────────────────────────────────
+    // ── Verificar archivos ─────────────────────────────────────────────────────
     if (empty($_FILES['photos']) || !is_array($_FILES['photos']['name'])) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'No se recibieron fotos.']);
         exit;
     }
 
-    // ── Normalizar $_FILES array ───────────────────────────────────────────────
+    // ── Normalizar $_FILES ─────────────────────────────────────────────────────
     $rawFiles = $_FILES['photos'];
     $fileList = [];
-    $count    = count($rawFiles['name']);
 
-    for ($i = 0; $i < $count; $i++) {
+    for ($i = 0, $n = count($rawFiles['name']); $i < $n; $i++) {
         if ($rawFiles['error'][$i] === UPLOAD_ERR_NO_FILE) continue;
         $fileList[] = [
             'name'     => $rawFiles['name'][$i],
-            'type'     => $rawFiles['type'][$i],
             'tmp_name' => $rawFiles['tmp_name'][$i],
             'error'    => $rawFiles['error'][$i],
             'size'     => $rawFiles['size'][$i],
@@ -81,7 +92,7 @@ try {
         exit;
     }
 
-    // ── Validar cada archivo ───────────────────────────────────────────────────
+    // ── Validar cada archivo con getimagesize() ────────────────────────────────
     foreach ($fileList as $idx => $file) {
         $pos = $idx + 1;
 
@@ -93,27 +104,31 @@ try {
 
         if ($file['size'] > MAX_FILE_SIZE) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => "La foto #{$pos} supera el límite de 5 MB."]);
+            echo json_encode(['status' => 'error', 'message' => "La foto #{$pos} supera el límite de 15 MB."]);
             exit;
         }
 
-        // Verificar MIME real con finfo (no confiar en el tipo del cliente)
-        $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime  = $finfo->file($file['tmp_name']);
-        if (!in_array($mime, ALLOWED_MIME, true)) {
+        // getimagesize() devuelve false si el archivo no es una imagen real
+        $info = @getimagesize($file['tmp_name']);
+        if ($info === false) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => "La foto #{$pos} no es JPG, PNG ni WebP válido (detectado: {$mime})."]);
+            echo json_encode(['status' => 'error', 'message' => "El archivo #{$pos} no es una imagen válida."]);
             exit;
         }
 
-        // Normalizar extensión desde MIME
-        $mimeToExt = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-        $fileList[$idx]['validated_ext']  = $mimeToExt[$mime];
-        $fileList[$idx]['validated_mime'] = $mime;
+        $imageType = $info[2];   // IMAGETYPE_JPEG | IMAGETYPE_PNG | IMAGETYPE_WEBP
+        if (!isset(GD_LOADERS[$imageType])) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => "La foto #{$pos} debe ser JPG, PNG o WebP."]);
+            exit;
+        }
+
+        $fileList[$idx]['width']      = $info[0];
+        $fileList[$idx]['height']     = $info[1];
+        $fileList[$idx]['image_type'] = $imageType;
     }
 
-    // ── Preparar directorio de destino ─────────────────────────────────────────
-    // uploads/ está en la raíz del proyecto, un nivel arriba de api/
+    // ── Preparar directorio ────────────────────────────────────────────────────
     $uploadDir = __DIR__ . '/../uploads/profiles/';
 
     if (!is_dir($uploadDir)) {
@@ -122,7 +137,6 @@ try {
         }
     }
 
-    // Verificar que el directorio es escribible
     if (!is_writable($uploadDir)) {
         throw new \RuntimeException('El directorio de subida no tiene permisos de escritura.');
     }
@@ -131,13 +145,12 @@ try {
     $db  = new Database();
     $pdo = $db->getConnection();
 
-    // ── Mover archivos y guardar en BD (transacción atómica) ──────────────────
-    $savedUrls   = [];
-    $movedFiles  = [];   // para limpiar físicamente si la BD falla
+    // ── Procesar, comprimir y guardar ──────────────────────────────────────────
+    $savedUrls  = [];
+    $savedPaths = [];   // para rollback físico si la BD falla
 
     $pdo->beginTransaction();
 
-    // Reemplazar fotos anteriores del usuario
     $stmtDel = $pdo->prepare('DELETE FROM profile_photos WHERE user_id = :userId');
     $stmtDel->execute([':userId' => $userId]);
 
@@ -146,19 +159,59 @@ try {
     );
 
     foreach ($fileList as $idx => $file) {
-        $ext      = $file['validated_ext'];
-        $filename = 'user_' . $userId . '_' . time() . '_' . $idx . '.' . $ext;
-        $destPath = $uploadDir . $filename;
 
-        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
-            throw new \RuntimeException("No se pudo mover la foto #" . ($idx + 1) . " al servidor. Verifica permisos del directorio.");
+        // ── Cargar imagen en memoria con GD ──────────────────────────────────
+        $loaderFn = GD_LOADERS[$file['image_type']];
+        $srcImg   = $loaderFn($file['tmp_name']);
+        if ($srcImg === false) {
+            $photoNum = $idx + 1;
+            throw new \RuntimeException("No se pudo procesar la imagen #{$photoNum}. Intenta con otro archivo.");
         }
 
-        $movedFiles[] = $destPath;
+        $srcW = (int) $file['width'];
+        $srcH = (int) $file['height'];
 
-        // URL pública relativa
-        $photoUrl    = '/uploads/profiles/' . $filename;
-        $savedUrls[] = $photoUrl;
+        // ── Redimensionar si supera MAX_DIMENSION ─────────────────────────────
+        if ($srcW > MAX_DIMENSION || $srcH > MAX_DIMENSION) {
+            if ($srcW >= $srcH) {
+                $newW = MAX_DIMENSION;
+                $newH = (int) round($srcH * MAX_DIMENSION / $srcW);
+            } else {
+                $newH = MAX_DIMENSION;
+                $newW = (int) round($srcW * MAX_DIMENSION / $srcH);
+            }
+
+            $dstImg = imagecreatetruecolor($newW, $newH);
+
+            // Preservar transparencia de PNG antes de redimensionar
+            if ($file['image_type'] === IMAGETYPE_PNG) {
+                imagealphablending($dstImg, false);
+                imagesavealpha($dstImg, true);
+                $transparent = imagecolorallocatealpha($dstImg, 0, 0, 0, 127);
+                imagefilledrectangle($dstImg, 0, 0, $newW, $newH, $transparent);
+            }
+
+            imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $newW, $newH, $srcW, $srcH);
+            imagedestroy($srcImg);
+            $finalImg = $dstImg;
+        } else {
+            $finalImg = $srcImg;
+        }
+
+        // ── Guardar SIEMPRE como .jpg ─────────────────────────────────────────
+        $filename = 'user_' . $userId . '_' . time() . '_' . $idx . '.jpg';
+        $destPath = $uploadDir . $filename;
+
+        if (!imagejpeg($finalImg, $destPath, JPEG_QUALITY)) {
+            imagedestroy($finalImg);
+            throw new \RuntimeException("No se pudo guardar la foto #" . ($idx + 1) . " en el servidor.");
+        }
+
+        imagedestroy($finalImg);
+
+        $savedPaths[] = $destPath;
+        $photoUrl     = '/uploads/profiles/' . $filename;
+        $savedUrls[]  = $photoUrl;
 
         $stmtIns->execute([
             ':userId' => $userId,
@@ -171,22 +224,20 @@ try {
 
     echo json_encode([
         'status'  => 'success',
-        'message' => 'Fotos subidas y guardadas correctamente.',
+        'message' => count($savedUrls) . ' foto(s) procesadas y guardadas correctamente.',
         'photos'  => $savedUrls,
     ]);
 
 } catch (\Throwable $e) {
-    // ── Captura global: CUALQUIER error devuelve JSON legible ──────────────────
-    // (nunca un 500 genérico de Apache)
 
-    // Intentar rollback si la transacción está abierta
+    // ── Rollback BD ───────────────────────────────────────────────────────────
     if (isset($pdo) && $pdo instanceof \PDO) {
         try { $pdo->rollBack(); } catch (\Throwable $ignored) {}
     }
 
-    // Limpiar archivos físicos ya movidos si la BD falló
-    if (!empty($movedFiles)) {
-        foreach ($movedFiles as $path) {
+    // ── Limpiar archivos físicos ya escritos ──────────────────────────────────
+    if (!empty($savedPaths)) {
+        foreach ($savedPaths as $path) {
             if (file_exists($path)) @unlink($path);
         }
     }
@@ -194,6 +245,7 @@ try {
     if (!headers_sent()) {
         http_response_code(500);
     }
+
     echo json_encode([
         'status'  => 'error',
         'message' => $e->getMessage(),

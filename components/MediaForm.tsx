@@ -22,6 +22,7 @@ import {
   Upload,
   X,
   AlertTriangle,
+  Loader2,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -150,7 +151,22 @@ export function MediaForm({ userId }: MediaFormProps) {
 
   // ── Render
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+
+      {/* ── Overlay de carga ── */}
+      {isLoading && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-4 rounded-2xl bg-background/90 backdrop-blur-sm">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="text-center px-6">
+            <p className="font-semibold text-foreground text-base">
+              Optimizando y subiendo tus fotos…
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Por favor no cierres esta ventana.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ================================================================
           SECCIÓN 1 — FOTOS DE PERFIL

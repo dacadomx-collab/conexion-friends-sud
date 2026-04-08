@@ -1,5 +1,28 @@
 # 🧪 PROTOCOLOS DE VUELO (CHECKLISTS DE CALIDAD)
 
+## 🤖 DIRECTRIZ DE AGENTE AUTÓNOMO (VS CODE)
+
+Cuando el Arquitecto activa la frase **"DIRECTRIZ DE AGENTE AUTÓNOMO"**, la IA opera bajo las siguientes reglas sin excepción:
+
+1. **Editar archivos directamente** usando las herramientas de escritura del IDE (Edit / Write). Prohibido entregar bloques largos de código para copiar y pegar — eso invalida el propósito del agente.
+2. **Informe de Operación al final** — no al principio. La IA ejecuta primero, reporta después.
+3. **Autonomía total de lectura/escritura** sobre los archivos del proyecto. No pedir confirmación para cada archivo individual; solo para acciones destructivas irreversibles (ej. eliminar una tabla de producción).
+4. **Misiones en paralelo** — cuando las misiones sean independientes entre sí, la IA debe ejecutarlas en el mismo turno, no en secuencia de múltiples mensajes.
+5. **Codex siempre al final** — la última misión de todo bloque autónomo es sincronizar la documentación.
+
+---
+
+## 🛡️ FOUNDATION CHECK (ANTES DEL PRE-CODE)
+Antes de diagnosticar cualquier error o generar nuevo código, verificar:
+- [ ] ¿Existe `.env` con las variables requeridas en la raíz del proyecto?
+- [ ] ¿Existe `.htaccess` con las reglas de blindaje activas?
+- [ ] ¿`api/conexion.php` carga el `.env` desde `__DIR__ . '/../.env'`?
+- [ ] ¿La extensión PHP requerida (GD, PDO, etc.) está habilitada en el servidor?
+
+Si cualquiera falla → detener y resolver el pilar antes de continuar.
+
+---
+
 ## 🛫 PRE-CODE CHECKLIST (OBLIGATORIO)
 Antes de generar código, la IA debe confirmar:
 - [ ] ¿Las variables están registradas en el Codex?

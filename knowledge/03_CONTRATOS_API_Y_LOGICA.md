@@ -172,16 +172,222 @@
 
 ---
 
+---
+
+### Endpoint: `api/get_profile.php`
+- **Método:** `GET`
+- **Autenticación:** Ninguna (se añadirá en fase de seguridad)
+- **Alcance de DB:** SELECT en `users` + LEFT JOIN `profiles` + SELECT en `social_networks` + SELECT en `profile_photos`.
+
+**Query Params:**
+```
+?userId=INT   — requerido, entero positivo
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": {
+    "userId":       "int",
+    "fullName":     "string",
+    "email":        "string",
+    "ward":         "string",
+    "stake":        "string",
+    "bio":          "string",
+    "showWhatsapp": "boolean",
+    "country":      "string | null",
+    "state":        "string | null",
+    "city":         "string | null",
+    "socials": {
+      "instagram": "string",
+      "facebook":  "string",
+      "linkedin":  "string",
+      "twitter":   "string",
+      "tiktok":    "string",
+      "website":   "string"
+    },
+    "photos": [
+      { "photoUrl": "string", "sortOrder": "int" }
+    ]
+  }
+}
+```
+
+**Response Error — HTTP 400 / 404 / 405 / 500**
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `userId` ausente o no es entero positivo |
+| 404 | Usuario no encontrado |
+| 405 | Método distinto de GET |
+| 500 | Error interno de servidor o DB |
+
+---
+
+### Endpoint: `api/update_social.php`
+- **Método:** `POST`
+- **Content-Type:** `application/json`
+- **Alcance de DB:** `INSERT ... ON DUPLICATE KEY UPDATE` en `social_networks`. UNIQUE KEY en `(user_id, network_type)`.
+
+**Payload (Front → Back) — camelCase:**
+```json
+{
+  "userId":    "int    — requerido",
+  "instagram": "string — handle sin @, máx. 100 chars",
+  "facebook":  "string — handle o nombre, máx. 100 chars",
+  "linkedin":  "string — URL completa, máx. 300 chars",
+  "twitter":   "string — handle sin @, máx. 100 chars",
+  "tiktok":    "string — handle sin @, máx. 100 chars",
+  "website":   "string — URL completa, máx. 300 chars"
+}
+```
+
+> Los campos vacíos se ignoran (no se insertan ni borran). Para borrar una red, enviar string vacío no tiene efecto; la eliminación es una operación futura de admin.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Redes sociales guardadas correctamente.",
+  "saved":   ["instagram", "facebook"]
+}
+```
+
+**Response Error — HTTP 400 / 405 / 500**
+
+---
+
+### Endpoint: `api/upload_photos.php`
+- **Método:** `POST`
+- **Content-Type:** `multipart/form-data`
+- **Alcance de DB:** DELETE + INSERT en `profile_photos` (dentro de una transacción atómica). Las fotos anteriores del usuario se reemplazan por completo.
+
+**Form Fields:**
+```
+userId     — int, requerido
+photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
+```
+
+**Procesamiento GD (pipeline de imagen):**
+1. Validación de extensión original con `pathinfo()` → debe estar en `[jpg, jpeg, png, webp]`.
+2. `getimagesize()` verifica que el archivo sea una imagen real.
+3. `imagecreatefromjpeg/png/webp()` carga en memoria con la librería GD.
+4. Si ancho o alto supera **1080 px**, redimensionado proporcional a 1080 px máx.
+5. Guardado **siempre como `.jpg`** con `imagejpeg($img, $path, 80)` (calidad 80%).
+6. Rollback físico (unlink) + rollback de BD si cualquier paso falla.
+
+**Destino físico:** `__DIR__ . '/../uploads/profiles/user_{id}_{time}_{idx}.jpg'`
+**URL pública guardada:** `/uploads/profiles/user_{id}_{time}_{idx}.jpg`
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "3 foto(s) procesadas y guardadas correctamente.",
+  "photos":  ["/uploads/profiles/user_1_xxx_0.jpg", "..."]
+}
+```
+
+**Response Error — HTTP 400 / 405 / 500** (siempre JSON, nunca 500 genérico de Apache gracias al `catch \Throwable` global)
+
+---
+
+### Endpoint: `api/submit_scripture.php`
+- **Método:** `POST`
+- **Content-Type:** `application/json`
+- **Alcance de DB:** SELECT MAX(scheduled_date) en `daily_scriptures` + INSERT.
+- **Restricción:** UNIQUE KEY en `scheduled_date` — solo una escritura por día calendario.
+
+**Payload (Front → Back):**
+```json
+{
+  "userId":    "int    — requerido",
+  "text":      "string — requerido, min 10 chars, máx 3000 chars",
+  "reference": "string — requerido, min 2 chars, máx 200 chars"
+}
+```
+
+**Lógica de fecha automática:**
+- Cola vacía o última fecha en el pasado → `scheduled_date = HOY`
+- Hay fechas presentes o futuras → `scheduled_date = MAX(scheduled_date) + 1 día`
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":        "success",
+  "message":       "Tu escritura fue añadida a la cola.",
+  "scheduledDate": "YYYY-MM-DD"
+}
+```
+
+**Response Error — HTTP 400 / 405 / 409 / 500**
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | Campo faltante, texto muy corto/largo, referencia vacía |
+| 409 | Colisión de fecha (race condition muy improbable) |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/get_today_scripture.php`
+- **Método:** `GET`
+- **Alcance de DB:** SELECT en `daily_scriptures` JOIN `users` WHERE `scheduled_date = CURDATE()`.
+
+**Query Params:** ninguno.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": {
+    "id":            "int",
+    "userId":        "int",
+    "fullName":      "string",
+    "scriptureText": "string",
+    "reference":     "string",
+    "scheduledDate": "YYYY-MM-DD"
+  }
+}
+```
+> Si no hay escritura hoy: `"data": null` (status sigue siendo `"success"`).
+
+---
+
+### Endpoint: `api/get_scripture_queue.php`
+- **Método:** `GET`
+- **Alcance de DB:** SELECT en `daily_scriptures` JOIN `users` WHERE `scheduled_date >= CURDATE()` ORDER BY fecha ASC, LIMIT 60.
+
+**Query Params:** ninguno.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id":            "int",
+      "userId":        "int",
+      "fullName":      "string",
+      "scriptureText": "string",
+      "reference":     "string",
+      "scheduledDate": "YYYY-MM-DD"
+    }
+  ]
+}
+```
+> Array vacío `[]` si no hay escrituras programadas.
+
+---
+
 ## 🧠 LÓGICA DE NEGOCIO (REGLAS DE PIEDRA)
 
 1. **Inmutabilidad de Identidad:** Los campos `full_name` y `birth_date` se insertan
    UNA SOLA VEZ en `register.php`. Ningún endpoint de actualización posterior puede
    modificarlos. El backend rechazará cualquier UPDATE que los incluya.
 
-2. **Validación de Fotos (futuro endpoint):** La tabla `profile_photos` acepta mínimo 2
-   y máximo 5 registros por `user_id`. Toda operación INSERT/DELETE verificará este
-   rango antes de ejecutarse. Si `sort_order` ya existe para ese `user_id`, la
-   operación es rechazada.
+2. **Validación de Fotos (`api/upload_photos.php`):** La tabla `profile_photos` acepta mínimo 2 y máximo 5 fotos por `user_id`. El endpoint realiza un DELETE completo de las fotos anteriores + INSERT de las nuevas dentro de una transacción atómica — el reemplazo es siempre total, nunca parcial. El pipeline GD garantiza que el archivo guardado en disco sea siempre un JPEG válido independientemente del formato original enviado.
 
 3. **Blindaje Técnico del Registro:**
    - `trim()` obligatorio sobre `full_name`, `email`, `phone`, `handle`.

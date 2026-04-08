@@ -355,10 +355,10 @@ export function MediaForm({ userId }: MediaFormProps) {
       <Card className="border-0 shadow-xl bg-card/95 backdrop-blur">
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-bold text-primary">
-            Redes Sociales
+            Redes Sociales <span className="text-base font-normal text-muted-foreground">(100% Opcional)</span>
           </CardTitle>
           <CardDescription>
-            Todas opcionales. Solo comparte lo que te haga sentir cómodo.
+            No estás obligado a compartir ninguna. Solo lo que te haga sentir cómodo.
           </CardDescription>
         </CardHeader>
 

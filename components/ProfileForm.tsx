@@ -250,7 +250,7 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
 
             {/* Ciudad */}
             <Field>
-              <FieldLabel htmlFor="prof-city">Ciudad / Municipio</FieldLabel>
+              <FieldLabel htmlFor="prof-city">Municipio / Ciudad <span className="text-muted-foreground font-normal">(Opcional)</span></FieldLabel>
               <div className="relative" suppressHydrationWarning>
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input

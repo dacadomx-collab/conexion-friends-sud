@@ -221,7 +221,7 @@ export function ScriptureForm() {
             )}
 
             <Button type="submit" className="w-full font-semibold" disabled={isLoading}>
-              {isLoading ? "Enviando…" : "Añadir a la Cola"}
+              {isLoading ? "Enviando…" : "Agregar a la fila"}
             </Button>
           </form>
           )}

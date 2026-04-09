@@ -15,6 +15,7 @@ import {
   LogOut,
   ChevronRight,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,8 @@ interface SessionData {
   id:       number
   fullName: string
   email:    string
+  role?:    string
+  status?:  string
 }
 
 interface ScriptureData {
@@ -51,37 +54,39 @@ interface DashCard {
   comingSoon?: boolean   // muestra alert en lugar de navegar
 }
 
-const CARDS: DashCard[] = [
-  {
-    icon:        <BookOpen className="h-7 w-7" />,
-    iconBg:      "bg-turquoise/10 text-turquoise",
-    title:       "El BOOK",
-    description: "Explora el directorio de Adultos Solteros SUD y conecta con la hermandad.",
-    href:        "/directorio",
-    badge:       "Próximamente",
-    comingSoon:  true,
-    disabled:    true,
-  },
-  {
-    icon:        <Tent className="h-7 w-7" />,
-    iconBg:      "bg-gold/10 text-gold",
-    title:       "Actividades del grupo",
-    description: "Noches de hogar, servicio comunitario, devocionales y deportes.",
-    href:        "#",
-    badge:       "¡En construcción!",
-    disabled:    true,
-  },
-  {
-    icon:        <MessageSquare className="h-7 w-7" />,
-    iconBg:      "bg-emerald/10 text-emerald",
-    title:       "Mensajes",
-    description: "Avisos y comunicados oficiales de los administradores.",
-    href:        "/mensajes",
-    badge:       "Próximamente",
-    comingSoon:  true,
-    disabled:    true,
-  },
-]
+function buildCards(isAdmin: boolean): DashCard[] {
+  return [
+    {
+      icon:        <BookOpen className="h-7 w-7" />,
+      iconBg:      "bg-turquoise/10 text-turquoise",
+      title:       "El BOOK",
+      description: "Explora el directorio de Adultos Solteros SUD y conecta con la hermandad.",
+      href:        "/directorio",
+      badge:       isAdmin ? undefined : "Próximamente",
+      comingSoon:  !isAdmin,
+      disabled:    !isAdmin,
+    },
+    {
+      icon:        <Tent className="h-7 w-7" />,
+      iconBg:      "bg-gold/10 text-gold",
+      title:       "Actividades del grupo",
+      description: "Noches de hogar, servicio comunitario, devocionales y deportes.",
+      href:        "#",
+      badge:       "¡En construcción!",
+      disabled:    true,
+    },
+    {
+      icon:        <MessageSquare className="h-7 w-7" />,
+      iconBg:      "bg-emerald/10 text-emerald",
+      title:       "Mensajes",
+      description: "Avisos y comunicados oficiales de los administradores.",
+      href:        "/mensajes",
+      badge:       isAdmin ? undefined : "Próximamente",
+      comingSoon:  !isAdmin,
+      disabled:    !isAdmin,
+    },
+  ]
+}
 
 // ---------------------------------------------------------------------------
 // Componente principal
@@ -91,6 +96,9 @@ export function DashboardClient() {
   const [session,   setSession]   = useState<SessionData | null>(null)
   const [greeting,  setGreeting]  = useState("¡Bienvenido al Cuartel General!")
   const [scripture, setScripture] = useState<ScriptureData | null | "loading">("loading")
+
+  const isAdmin = session?.role === "admin"
+  const CARDS   = buildCards(isAdmin)
 
   // ── Leer sesión de localStorage (client-side only) ────────────────────────
   useEffect(() => {
@@ -254,6 +262,36 @@ export function DashboardClient() {
           </CardContent>
         </Card>
 
+        {/* ── Tarjeta: Panel de Administración (solo admins) ── */}
+        {isAdmin && (
+          <Link href="/admin" className="block">
+            <Card className="group relative border-2 border-primary/40 shadow-md hover:shadow-lg hover:border-primary/70 hover:-translate-y-0.5 transition-all duration-200 cursor-pointer bg-gradient-to-br from-primary/5 to-primary/10">
+              <CardContent className="p-5 flex items-start gap-4">
+                <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0 bg-primary/15 text-primary">
+                  <ShieldCheck className="h-7 w-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-base font-bold text-foreground leading-tight">
+                      Panel de Administración
+                    </h2>
+                    <Badge
+                      variant="secondary"
+                      className="text-xs bg-primary/10 text-primary border border-primary/30 font-semibold"
+                    >
+                      Admin
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Gestiona usuarios, roles, estatus y fechas de ingreso al grupo.
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-primary/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
         {/* ── Grid de tarjetas ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {CARDS.map((card) => {
@@ -301,7 +339,7 @@ export function DashboardClient() {
                   key={card.title}
                   type="button"
                   className="block w-full text-left"
-                  onClick={() => alert("¡Próximamente! Estamos preparando esta sección para ti.")}
+                  onClick={() => alert("¡Próximamente! Esta sección estará disponible pronto para todos los miembros.")}
                 >
                   {inner}
                 </button>

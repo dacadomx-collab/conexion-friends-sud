@@ -103,8 +103,9 @@ try {
         }
 
         // ── Capa extra: validar extensión del nombre original ─────────────────
+        $allowedExt = ['jpg', 'jpeg', 'png', 'webp'];
         $ext = strtolower((string) pathinfo($file['name'], PATHINFO_EXTENSION));
-        if (!in_array($ext, ALLOWED_EXT, true)) {
+        if (!in_array($ext, $allowedExt, true)) {
             http_response_code(400);
             echo json_encode([
                 'status'  => 'error',

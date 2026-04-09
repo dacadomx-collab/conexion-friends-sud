@@ -89,7 +89,9 @@
   "data": {
     "id":       "int",
     "fullName": "string",
-    "email":    "string"
+    "email":    "string",
+    "role":     "string — 'admin' | 'user'",
+    "status":   "string — 'active' | 'inactive' | 'blocked'"
   }
 }
 ```
@@ -397,4 +399,76 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
    - `password` jamás se almacena en texto plano: usar `password_hash()` con
      `PASSWORD_BCRYPT` y `cost >= 12`. Destruir variable de texto plano con `unset()`.
    - `acceptedCodeOfConduct` debe ser estrictamente `true` (booleano PHP).
+
+---
+
+### Endpoint: `api/get_users_admin.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/get_users_admin.php`
+- **Autenticación:** `requesterId` (query param) — se verifica en BD que sea `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** SELECT en `users` LEFT JOIN `profiles`.
+
+**Query Params:**
+```
+?requesterId=INT  (obligatorio)
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id":            "int",
+      "fullName":      "string",
+      "email":         "string",
+      "role":          "string — 'admin' | 'user'",
+      "status":        "string — 'active' | 'inactive' | 'blocked'",
+      "groupJoinDate": "string — YYYY-MM-DD | ''"
+    }
+  ]
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` faltante o inválido |
+| 403 | Usuario no es admin o no existe |
+| 500 | Error interno de servidor |
+
+---
+
+### Endpoint: `api/update_user_admin.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/update_user_admin.php`
+- **Autenticación:** `requesterId` en body JSON — se verifica en BD que sea `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** UPDATE en `users` (role, status) + INSERT/UPDATE en `profiles` (group_join_date).
+- **Regla de Integridad:** Un admin NO puede cambiar su propio rol a un valor distinto de `'admin'`.
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "requesterId":  "int — ID del admin que ejecuta la acción",
+  "targetUserId": "int — ID del usuario a modificar",
+  "newRole":      "string — 'admin' | 'user'",
+  "newStatus":    "string — 'active' | 'inactive' | 'blocked'",
+  "newJoinDate":  "string | null — YYYY-MM-DD o null para no modificar"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Usuario actualizado correctamente."
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | Campos faltantes, valores inválidos, o admin intentando degradar su propio rol |
+| 403 | `requesterId` no es admin o no existe |
+| 500 | Error interno de servidor |
      Cualquier otro valor rechaza el registro con HTTP 400.

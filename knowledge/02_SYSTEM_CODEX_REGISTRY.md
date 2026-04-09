@@ -105,6 +105,7 @@
 | `/inspiracion` | `app/inspiracion/page.tsx` | ✅ Activo | Formulario de escritura + cola de espera |
 | `/directorio` | `app/directorio/page.tsx` | ✅ Activo | El BOOK — grid de miembros activos v1.0 |
 | `/mensajes` | `app/mensajes/page.tsx` | ✅ Activo (shell) | Bandeja en construcción |
+| `/admin` | `app/admin/page.tsx` | ✅ Activo | Panel de Administración — solo `role='admin'` |
 
 ---
 
@@ -135,13 +136,19 @@
 - Genera saludo dinámico: "Buenos días/tardes/noches, [PrimerNombre]" según la hora del dispositivo.
 - Botón **Salir** limpia `cfs_session` y redirige a `/`.
 
-#### Las 4 Tarjetas
-| # | Título | Destino | Estado |
-| :--- | :--- | :--- | :--- |
-| 1 | Tu Perfil | `/perfil?userId={id}` | ✅ Activo |
-| 2 | El BOOK | `/directorio` | 🔲 Ruta futura |
-| 3 | Actividades del grupo | `#` (deshabilitado) | 🚧 Badge "¡En construcción!" |
-| 4 | Mensajes | `/mensajes` | 🔲 Ruta futura |
+#### Las 5 Tarjetas
+| # | Título | Destino | Estado | Visibilidad |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Tu Perfil | `/perfil?userId={id}` | ✅ Activo | Todos |
+| 2 | Panel de Administración | `/admin` | ✅ Activo | Solo `role='admin'` |
+| 3 | El BOOK | `/directorio` | Activo para admins / 🔲 Próximamente para users | Condicional por rol |
+| 4 | Actividades del grupo | `#` (deshabilitado) | 🚧 Badge "¡En construcción!" | Todos |
+| 5 | Mensajes | `/mensajes` | Activo para admins / 🔲 Próximamente para users | Condicional por rol |
+
+#### Regla de rol en el Dashboard
+- `isAdmin = session?.role === 'admin'`
+- Tarjeta "Panel de Administración" solo se renderiza si `isAdmin === true`.
+- El BOOK y Mensajes: si `isAdmin`, se muestran como tarjetas activas; si no, badge "Próximamente" + alert al clic.
 
 ---
 

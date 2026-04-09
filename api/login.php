@@ -94,7 +94,7 @@ $pdo = $db->getConnection();
 //    password_hash se usa ÚNICAMENTE para verificación; nunca sale en respuesta.
 // -----------------------------------------------------------------------------
 $stmt = $pdo->prepare("
-    SELECT `id`, `full_name`, `email`, `password_hash`
+    SELECT `id`, `full_name`, `email`, `password_hash`, `role`, `status`
     FROM   `users`
     WHERE  `email` = :email
     LIMIT  1
@@ -133,5 +133,7 @@ echo json_encode([
         'id'       => (int) $user['id'],
         'fullName' => $user['full_name'],
         'email'    => $user['email'],
+        'role'     => $user['role']   ?? 'user',
+        'status'   => $user['status'] ?? 'active',
     ]
 ]);

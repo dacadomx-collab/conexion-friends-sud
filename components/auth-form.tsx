@@ -133,10 +133,12 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       const result = await parseJsonResponse(response)
 
       if (result.status === "success") {
-        // Persistir sesión: { id, fullName, email }
+        // Persistir sesión: { id, fullName, email, role, status }
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(result.data))
-        onSuccess?.()
+        // No reseteamos loginLoading → el botón mantiene el spinner durante la
+        // navegación a /dashboard evitando el parpadeo de la landing page.
         router.push("/dashboard")
+        return
       } else {
         setLoginError(result.message ?? "Error desconocido del servidor.")
       }

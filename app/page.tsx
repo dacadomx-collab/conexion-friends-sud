@@ -1,30 +1,16 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
 import { AuthForm } from "@/components/auth-form"
-import { ProfilePage } from "@/components/profile-page"
-import { WallPage } from "@/components/wall-page"
-import { Navigation } from "@/components/navigation"
 import { Users, Heart, Shield } from "lucide-react"
 
+// -----------------------------------------------------------------------------
+// Landing page — Server Component shell + AuthForm (Client Component)
+// La autenticación ocurre dentro de AuthForm, que al tener éxito llama
+// router.push("/dashboard") internamente. No hay estado isLoggedIn aquí.
+// -----------------------------------------------------------------------------
 export default function HomePage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [currentPage, setCurrentPage] = useState<"profile" | "wall">("wall")
-
-  if (isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navigation currentPage={currentPage} onNavigate={setCurrentPage} onLogout={() => setIsLoggedIn(false)} />
-        <main className="pt-16">
-          {currentPage === "wall" && <WallPage />}
-          {currentPage === "profile" && <ProfilePage />}
-        </main>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - Two Column Layout */}
@@ -103,7 +89,7 @@ export default function HomePage() {
         {/* Right Side - Auth Form */}
         <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-12 bg-background">
           <div className="w-full max-w-md">
-            <AuthForm onSuccess={() => setIsLoggedIn(true)} />
+            <AuthForm />
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Al registrarte, aceptas nuestros{" "}

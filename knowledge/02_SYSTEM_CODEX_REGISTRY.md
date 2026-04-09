@@ -80,7 +80,11 @@
 - `state`: VARCHAR(100) NULL — Estado o provincia (migración 01)
 - `city`: VARCHAR(100) NULL — Ciudad o municipio (migración 01)
 - `group_join_date`: DATE NULL — 🔒 Fecha de ingreso al grupo físico; solo admin *(Migración 03)*
+- `gender`: ENUM('M','F') NULL — Género del miembro; usado para filtros en el Directorio *(Migración 04 — pendiente)*
 - `updated_at`: TIMESTAMP — Se actualiza en cada UPDATE
+
+> ⚠️ **Migración 04 pendiente:** `ALTER TABLE profiles ADD COLUMN gender ENUM('M','F') NULL AFTER city;`
+> Hasta que se ejecute, el campo retorna `''` y el filtro de Hermanos/Hermanas no filtra en producción (muestra todos).
 
 ## 🧠 REGISTRO SEMÁNTICO (VOCABULARIO CONTROLADO)
 - ✅ **Términos Permitidos:** `ward`, `stake`, `bio`, `showWhatsapp`, `userId`, `fullName`, `birthDate`, `country`, `state`, `city`

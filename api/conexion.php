@@ -2,30 +2,46 @@
 declare(strict_types=1);
 
 // -----------------------------------------------------------------------------
-// CORS DINÁMICO — Whitelist explícita de orígenes permitidos.
-// El Origin del cliente se compara contra la lista; nunca se refleja ciegamente.
+// CORS DINÁMICO — Whitelist cargada desde variable de entorno ALLOWED_ORIGINS
+// (lista separada por comas) con fallback a valores seguros por defecto.
+// El Origin del cliente NUNCA se refleja ciegamente — siempre se valida primero.
 // -----------------------------------------------------------------------------
-$allowedOrigins = [
-    'https://friends.tecnidepot.com',
-    'http://localhost:3000',
-    'http://localhost:3001',
-];
+$envOrigins     = getenv('ALLOWED_ORIGINS') ?: '';
+$allowedOrigins = array_filter(array_map('trim', explode(',', $envOrigins)));
+
+// Fallback: si la variable de entorno no está configurada usamos la whitelist base.
+if (empty($allowedOrigins)) {
+    $allowedOrigins = [
+        'https://friends.tecnidepot.com',
+        'http://localhost:3000',
+        'http://localhost:3001',
+    ];
+}
 
 $requestOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$corsOrigin    = in_array($requestOrigin, $allowedOrigins, true)
-    ? $requestOrigin
-    : 'https://friends.tecnidepot.com';
 
-header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: '  . $corsOrigin);
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Vary: Origin');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
+if (in_array($requestOrigin, $allowedOrigins, true)) {
+    header('Access-Control-Allow-Origin: ' . $requestOrigin);
+    header('Access-Control-Allow-Credentials: true');
+    header('Vary: Origin');
+} else {
+    // Origen no reconocido — devolvemos el dominio de producción como default.
+    header('Access-Control-Allow-Origin: https://friends.tecnidepot.com');
+    header('Vary: Origin');
 }
+
+// ── Intercepción Preflight (OPTIONS) ─────────────────────────────────────────
+// Debe resolverse ANTES de cualquier lógica de aplicación o acceso a la BD.
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Max-Age: 86400');   // caché preflight 24 h → menos round-trips
+    header('HTTP/1.1 200 OK');
+    exit(0);
+}
+
+// Solo las peticiones reales (no OPTIONS) llevan Content-Type JSON.
+header('Content-Type: application/json; charset=UTF-8');
 
 class Database {
     private string $host;

@@ -12,6 +12,7 @@ import {
   FieldError,
 } from "@/components/ui/field"
 import { Eye, EyeOff, Mail, Lock } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -63,7 +64,7 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
     setApiError(null)
     setIsLoading(true)
 
-    const apiUrl = '/api/login.php'
+    const apiUrl = `${API_BASE_URL}/api/login.php`
 
     try {
       const response = await fetch(apiUrl, {
@@ -131,6 +132,7 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
                   required
                   disabled={isLoading}
                   autoComplete="email"
+                  data-lpignore="true"
                 />
               </div>
             </Field>
@@ -151,6 +153,7 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
                   required
                   disabled={isLoading}
                   autoComplete="current-password"
+                  data-lpignore="true"
                 />
                 <button
                   type="button"

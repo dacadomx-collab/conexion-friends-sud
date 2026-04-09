@@ -25,6 +25,7 @@ import {
   Loader2,
   ImageIcon,
 } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Reglas de negocio (Codex)
@@ -86,7 +87,7 @@ export function MediaForm({ userId }: MediaFormProps) {
   useEffect(() => {
     async function loadProfile() {
       try {
-        const res  = await fetch(`/api/get_profile.php?userId=${userId}`)
+        const res  = await fetch(`${API_BASE_URL}/api/get_profile.php?userId=${userId}`)
         const text = await res.text()
         let   json: {
           status: string
@@ -160,7 +161,7 @@ export function MediaForm({ userId }: MediaFormProps) {
 
     try {
       // 1. Redes sociales
-      const socialRes  = await fetch("/api/update_social.php", {
+      const socialRes  = await fetch(`${API_BASE_URL}/api/update_social.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ userId, instagram, facebook, linkedin, twitter, tiktok, website }),
@@ -178,7 +179,7 @@ export function MediaForm({ userId }: MediaFormProps) {
         .filter((s) => s.file !== null)
         .forEach((s) => formData.append("photos[]", s.file as File))
 
-      const photosRes  = await fetch("/api/upload_photos.php", {
+      const photosRes  = await fetch(`${API_BASE_URL}/api/upload_photos.php`, {
         method: "POST",
         body:   formData,
       })

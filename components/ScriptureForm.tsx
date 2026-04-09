@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -66,7 +67,7 @@ export function ScriptureForm() {
 
   function loadQueue() {
     setQueueLoading(true)
-    fetch("/api/get_scripture_queue.php")
+    fetch(`${API_BASE_URL}/api/get_scripture_queue.php`)
       .then((r) => r.json())
       .then((json) => {
         if (json.status === "success") setQueue(json.data ?? [])
@@ -98,7 +99,7 @@ export function ScriptureForm() {
 
     setIsLoading(true)
     try {
-      const res  = await fetch("/api/submit_scripture.php", {
+      const res  = await fetch(`${API_BASE_URL}/api/submit_scripture.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ userId, text: text.trim(), reference: reference.trim() }),

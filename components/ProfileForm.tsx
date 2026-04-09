@@ -15,6 +15,7 @@ import {
   FieldError,
 } from "@/components/ui/field"
 import { MapPin, Church, User, MessageCircle, Globe } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -88,7 +89,7 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
   useEffect(() => {
     async function loadProfile() {
       try {
-        const res  = await fetch(`/api/get_profile.php?userId=${userId}`)
+        const res  = await fetch(`${API_BASE_URL}/api/get_profile.php?userId=${userId}`)
         const text = await res.text()
         let   json: { status: string; data?: Partial<FormData> }
         try   { json = JSON.parse(text) }
@@ -133,7 +134,7 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
     setSuccessMessage(null)
     setIsLoading(true)
 
-    const apiUrl = '/api/update_profile.php'
+    const apiUrl = `${API_BASE_URL}/api/update_profile.php`
 
     try {
       const response = await fetch(apiUrl, {

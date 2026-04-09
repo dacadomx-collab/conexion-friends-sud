@@ -18,6 +18,7 @@ export function ConexionLogo({ className = "", size = 48 }: ConexionLogoProps) {
         height={size}
         priority
         className="shrink-0"
+        style={{ width: size, height: "auto" }}
       />
       <div className="flex flex-col">
         <span className="text-xl font-bold text-primary leading-tight">Conexion</span>

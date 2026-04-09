@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldGroup, FieldLabel, FieldDescription } from "@/components/ui/field"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Eye, EyeOff, Mail, Lock, User, Phone, Calendar, AlertTriangle } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -81,6 +82,10 @@ function ErrorBanner({ message }: { message: string }) {
 export function AuthForm({ onSuccess }: AuthFormProps) {
   const router = useRouter()
 
+  // ── Montaje diferido: evita que LastPass inyecte en el SSR ────────────────
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => { setIsMounted(true) }, [])
+
   // ── Estado: Login
   const [loginEmail,    setLoginEmail]    = useState("")
   const [loginPassword, setLoginPassword] = useState("")
@@ -116,7 +121,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
     setLoginLoading(true)
 
     try {
-      const response = await fetch("/api/login.php", {
+      const response = await fetch(`${API_BASE_URL}/api/login.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
@@ -176,7 +181,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
     setRegLoading(true)
 
     try {
-      const response = await fetch("/api/register.php", {
+      const response = await fetch(`${API_BASE_URL}/api/register.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
@@ -226,6 +231,22 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       </CardHeader>
 
       <CardContent>
+        {/* Skeleton SSR: el servidor nunca renderiza inputs → LastPass no puede inyectar */}
+        {!isMounted ? (
+          <div className="space-y-4 animate-pulse" aria-hidden="true">
+            {/* Tabs stub */}
+            <div className="grid grid-cols-2 gap-1 h-10 rounded-md bg-secondary/60 mb-6" />
+            {/* Campos stub */}
+            {[1, 2].map((i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3.5 w-28 rounded bg-secondary/80" />
+                <div className="h-10 w-full rounded-md bg-secondary/60" />
+              </div>
+            ))}
+            {/* Botón stub */}
+            <div className="h-10 w-full rounded-md bg-primary/20 mt-2" />
+          </div>
+        ) : (
         <Tabs defaultValue="login" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
@@ -242,7 +263,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Email ── */}
                 <Field>
                   <FieldLabel htmlFor="login-email">Correo electrónico</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="login-email"
@@ -253,6 +274,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       onChange={(e) => { setLoginEmail(e.target.value); setLoginError(null) }}
                       disabled={loginLoading}
                       autoComplete="email"
+                      data-lpignore="true"
                     />
                   </div>
                 </Field>
@@ -260,7 +282,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Contraseña ── */}
                 <Field>
                   <FieldLabel htmlFor="login-password">Contraseña</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="login-password"
@@ -271,6 +293,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       onChange={(e) => { setLoginPassword(e.target.value); setLoginError(null) }}
                       disabled={loginLoading}
                       autoComplete="current-password"
+                      data-lpignore="true"
                     />
                     <button
                       type="button"
@@ -309,7 +332,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Nombre completo ── */}
                 <Field>
                   <FieldLabel htmlFor="reg-fullName">Nombre completo</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="reg-fullName"
@@ -331,7 +354,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Correo electrónico ── */}
                 <Field>
                   <FieldLabel htmlFor="reg-email">Correo electrónico</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="reg-email"
@@ -343,6 +366,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       onChange={handleRegChange}
                       disabled={regLoading}
                       autoComplete="email"
+                      data-lpignore="true"
                     />
                   </div>
                 </Field>
@@ -350,7 +374,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Teléfono ── */}
                 <Field>
                   <FieldLabel htmlFor="reg-phone">Teléfono</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="reg-phone"
@@ -368,7 +392,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Fecha de nacimiento ── */}
                 <Field>
                   <FieldLabel htmlFor="reg-birthDate">Fecha de nacimiento</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="reg-birthDate"
@@ -388,7 +412,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 {/* ── Contraseña ── */}
                 <Field>
                   <FieldLabel htmlFor="reg-password">Contraseña</FieldLabel>
-                  <div className="relative" suppressHydrationWarning>
+                  <div className="relative" suppressHydrationWarning data-lpignore="true">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="reg-password"
@@ -400,6 +424,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       onChange={handleRegChange}
                       disabled={regLoading}
                       autoComplete="new-password"
+                      data-lpignore="true"
                     />
                     <button
                       type="button"
@@ -457,6 +482,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           </TabsContent>
 
         </Tabs>
+        )}
       </CardContent>
     </Card>
   )

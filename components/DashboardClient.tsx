@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
 import { Card, CardContent } from "@/components/ui/card"
+import { API_BASE_URL } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import {
   UserCircle,
@@ -116,7 +117,7 @@ export function DashboardClient() {
 
   // ── Cargar escritura del día ──────────────────────────────────────────────
   useEffect(() => {
-    fetch("/api/get_today_scripture.php")
+    fetch(`${API_BASE_URL}/api/get_today_scripture.php`)
       .then((r) => r.json())
       .then((json) => {
         if (json.status === "success") setScripture(json.data ?? null)

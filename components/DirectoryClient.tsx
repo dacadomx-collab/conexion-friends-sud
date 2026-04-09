@@ -5,6 +5,7 @@ import Link from "next/link"
 import { UserCircle, Calendar, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -37,7 +38,7 @@ export function DirectoryClient() {
 
   // ── Cargar directorio ─────────────────────────────────────────────────────
   useEffect(() => {
-    fetch("/api/get_directory.php")
+    fetch(`${API_BASE_URL}/api/get_directory.php`)
       .then((r) => r.json())
       .then((json) => {
         if (json.status === "success") {

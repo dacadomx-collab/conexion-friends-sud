@@ -14,6 +14,7 @@ import {
   FieldError,
 } from "@/components/ui/field"
 import { Eye, EyeOff, Mail, Lock, User, Phone, Calendar } from "lucide-react"
+import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -96,7 +97,7 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
     setSuccessMessage(null)
     setIsLoading(true)
 
-    const apiUrl = '/api/register.php'
+    const apiUrl = `${API_BASE_URL}/api/register.php`
 
     try {
       const response = await fetch(apiUrl, {
@@ -192,6 +193,7 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
                   onChange={handleChange}
                   required
                   disabled={isLoading}
+                  data-lpignore="true"
                 />
               </div>
             </Field>
@@ -252,6 +254,7 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
                   required
                   minLength={8}
                   disabled={isLoading}
+                  data-lpignore="true"
                 />
                 <button
                   type="button"

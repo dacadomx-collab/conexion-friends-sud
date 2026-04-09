@@ -54,6 +54,10 @@ export function ScriptureForm() {
     } catch { /* sin sesión — el formulario mostrará error al enviar */ }
   }, [])
 
+  // ── Montaje diferido: blinda el SSR contra inyecciones de extensiones ────
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => { setIsMounted(true) }, [])
+
   // ── Formulario ────────────────────────────────────────────────────────────
   const [text,      setText]      = useState("")
   const [reference, setReference] = useState("")
@@ -144,6 +148,21 @@ export function ScriptureForm() {
         </CardHeader>
 
         <CardContent>
+          {!isMounted ? (
+            /* Skeleton SSR: el servidor nunca renderiza inputs → LastPass no inyecta */
+            <div className="space-y-4 animate-pulse" aria-hidden="true">
+              <div className="space-y-1.5">
+                <div className="h-3.5 w-36 rounded bg-secondary/80" />
+                <div className="h-28 w-full rounded-md bg-secondary/60" />
+                <div className="h-3 w-24 ml-auto rounded bg-secondary/60" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-3.5 w-24 rounded bg-secondary/80" />
+                <div className="h-10 w-full rounded-md bg-secondary/60" />
+              </div>
+              <div className="h-10 w-full rounded-md bg-primary/20" />
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <FieldGroup>
 
@@ -205,6 +224,7 @@ export function ScriptureForm() {
               {isLoading ? "Enviando…" : "Añadir a la Cola"}
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
 

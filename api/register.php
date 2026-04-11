@@ -56,6 +56,7 @@ $email                 = isset($payload['email'])                 ? trim((string
 $phone                 = isset($payload['phone'])                 ? trim((string) $payload['phone'])       : null;
 $birthDate             = isset($payload['birthDate'])             ? trim((string) $payload['birthDate'])   : null;
 $password              = isset($payload['password'])              ? $payload['password']                   : null;
+$gender                = isset($payload['gender'])                ? trim((string) $payload['gender'])      : null;
 $acceptedCodeOfConduct = $payload['acceptedCodeOfConduct'] ?? null;
 
 // -----------------------------------------------------------------------------
@@ -69,6 +70,7 @@ if (empty($email))                 $missingFields[] = 'email';
 if (empty($phone))                 $missingFields[] = 'phone';
 if (empty($birthDate))             $missingFields[] = 'birthDate';
 if (empty($password))              $missingFields[] = 'password';
+if (empty($gender))                $missingFields[] = 'gender';
 if ($acceptedCodeOfConduct === null) $missingFields[] = 'acceptedCodeOfConduct';
 
 if (!empty($missingFields)) {
@@ -88,6 +90,17 @@ if ($acceptedCodeOfConduct !== true) {
     echo json_encode([
         'status'  => 'error',
         'message' => 'Debes aceptar el código de conducta para registrarte.',
+        'data'    => []
+    ]);
+    exit;
+}
+
+// 6.2b — gender: debe ser exactamente 'M' o 'F'
+if ($gender !== 'M' && $gender !== 'F') {
+    http_response_code(400);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'El género debe ser "M" (Hermano) o "F" (Hermana).',
         'data'    => []
     ]);
     exit;
@@ -178,6 +191,13 @@ $pdo = $db->getConnection();
 //      acceptedCodeOfConduct → accepted_code_of_conduct
 // -----------------------------------------------------------------------------
 try {
+    // -------------------------------------------------------------------------
+    // 9. TRANSACCIÓN ATÓMICA — users + profiles deben crearse juntos.
+    //    Si el INSERT en profiles falla, el usuario no queda creado a medias.
+    // -------------------------------------------------------------------------
+    $pdo->beginTransaction();
+
+    // 9a. INSERT en tabla `users`
     $stmt = $pdo->prepare("
         INSERT INTO `users`
             (`full_name`, `email`, `phone`, `birth_date`, `password_hash`, `accepted_code_of_conduct`)
@@ -195,6 +215,22 @@ try {
     ]);
 
     $newUserId = (int) $pdo->lastInsertId();
+
+    // 9b. INSERT en tabla `profiles` — siembra el género desde el registro.
+    //     Columna gender: ENUM('M','F') NULL — Migración 04 ejecutada.
+    //     Los demás campos del perfil se completan en /perfil (Paso 2 del onboarding).
+    $stmtProfile = $pdo->prepare("
+        INSERT INTO `profiles` (`user_id`, `gender`)
+        VALUES (:user_id, :gender)
+    ");
+
+    $stmtProfile->execute([
+        ':user_id' => $newUserId,
+        ':gender'  => $gender,
+    ]);
+
+    $pdo->commit();
+
     $createdAt = date('Y-m-d H:i:s');
 
     // -------------------------------------------------------------------------
@@ -215,6 +251,11 @@ try {
     ]);
 
 } catch (PDOException $e) {
+
+    // Revertir la transacción si algo falló a mitad
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
 
     // -------------------------------------------------------------------------
     // 11. CAPTURA DE ERROR — Email duplicado (SQLSTATE 23000)

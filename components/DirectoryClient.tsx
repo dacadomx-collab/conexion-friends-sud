@@ -18,8 +18,8 @@ import {
   Church,
   UserCircle2,
   Users,
+  AlertTriangle,
 } from "lucide-react"
-import { Badge }  from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
 import {
@@ -30,7 +30,7 @@ import {
 import { API_BASE_URL } from "@/lib/api"
 
 // ---------------------------------------------------------------------------
-// Tipos
+// Tipos — alineados exactamente con get_directory.php v3
 // ---------------------------------------------------------------------------
 interface Socials {
   instagram: string
@@ -45,7 +45,7 @@ interface Member {
   id:            number
   fullName:      string
   birthDate:     string | null
-  gender:        string          // 'M' | 'F' | ''
+  gender:        string        // 'M' | 'F' | ''
   ward:          string
   stake:         string
   bio:           string
@@ -62,93 +62,57 @@ interface Member {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data — se usa mientras el backend aún no devuelve todos los campos
-// ---------------------------------------------------------------------------
-const MOCK_MEMBERS: Member[] = [
-  {
-    id: 1, fullName: "Ana Lucía Herrera",   birthDate: "1996-03-12",
-    gender: "F", ward: "Barrio Norte", stake: "Estaca Toluca",
-    bio: "Me encanta leer, cocinar y compartir con la familia. Busco amistades sinceras y llenas de luz.",
-    showWhatsapp: true, phone: "5215551234567",
-    country: "México", state: "Estado de México", city: "Toluca",
-    role: "user", groupJoinDate: "2023-09-01",
-    photoUrl: null, allPhotos: [], socials: { instagram: "analuciaher", facebook: "", linkedin: "", twitter: "", tiktok: "analuciaher", website: "" },
-  },
-  {
-    id: 2, fullName: "Carlos Mendoza Ríos", birthDate: "1991-07-25",
-    gender: "M", ward: "Barrio Poniente", stake: "Estaca Toluca",
-    bio: "Amo el futbol y el senderismo. Mi fe es mi guía.",
-    showWhatsapp: false, phone: null,
-    country: "México", state: "Estado de México", city: "Toluca",
-    role: "user", groupJoinDate: "2021-02-14",
-    photoUrl: null, allPhotos: [], socials: { instagram: "", facebook: "carlos.mendoza.rios", linkedin: "", twitter: "", tiktok: "", website: "" },
-  },
-  {
-    id: 3, fullName: "Sofía Ramírez Torres", birthDate: "1999-11-30",
-    gender: "F", ward: "Barrio Sur", stake: "Estaca Naucalpan",
-    bio: "Trabajo en diseño gráfico. La música es mi refugio y los templos son mi meta.",
-    showWhatsapp: true, phone: "5215559876543",
-    country: "México", state: "CDMX", city: "Naucalpan",
-    role: "user", groupJoinDate: "2024-01-10",
-    photoUrl: null, allPhotos: [], socials: { instagram: "sofiart_", facebook: "", linkedin: "sofia-ramirez", twitter: "", tiktok: "", website: "https://sofiart.mx" },
-  },
-  {
-    id: 4, fullName: "Diego Vargas Castillo", birthDate: "1988-05-18",
-    gender: "M", ward: "Barrio Central", stake: "Estaca CDMX Norte",
-    bio: "Contador de profesión, voluntario de corazón. Me gustan los retiros de jóvenes adultos.",
-    showWhatsapp: true, phone: "5215554561234",
-    country: "México", state: "CDMX", city: "Ciudad de México",
-    role: "admin", groupJoinDate: "2019-06-01",
-    photoUrl: null, allPhotos: [], socials: { instagram: "", facebook: "", linkedin: "diegovargas", twitter: "diegovc", tiktok: "", website: "" },
-  },
-  {
-    id: 5, fullName: "Valentina Cruz Ortega", birthDate: "1994-08-22",
-    gender: "F", ward: "Barrio Oriente", stake: "Estaca Guadalajara",
-    bio: "Maestra de primaria. Los niños y el Evangelio son mi vocación.",
-    showWhatsapp: false, phone: null,
-    country: "México", state: "Jalisco", city: "Guadalajara",
-    role: "user", groupJoinDate: "2022-11-05",
-    photoUrl: null, allPhotos: [], socials: { instagram: "vale.cruz", facebook: "valentina.cruz.ortega", linkedin: "", twitter: "", tiktok: "vale.cruz", website: "" },
-  },
-  {
-    id: 6, fullName: "Rodrigo Ibáñez Pérez", birthDate: "1997-01-09",
-    gender: "M", ward: "Barrio Lomas", stake: "Estaca Guadalajara",
-    bio: "Estudiante de medicina. La oración y el ejercicio me mantienen enfocado.",
-    showWhatsapp: true, phone: "5213312345678",
-    country: "México", state: "Jalisco", city: "Guadalajara",
-    role: "user", groupJoinDate: "2024-03-20",
-    photoUrl: null, allPhotos: [], socials: { instagram: "roibanez", facebook: "", linkedin: "", twitter: "", tiktok: "", website: "" },
-  },
-]
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+const EMPTY_SOCIALS: Socials = {
+  instagram: "", facebook: "", linkedin: "",
+  twitter:   "", tiktok:   "", website:  "",
+}
+
+function normalizeMember(m: Partial<Member> & { id: number; fullName: string }): Member {
+  return {
+    id:            m.id,
+    fullName:      m.fullName      ?? "",
+    birthDate:     m.birthDate     ?? null,
+    gender:        m.gender        ?? "",
+    ward:          m.ward          ?? "",
+    stake:         m.stake         ?? "",
+    bio:           m.bio           ?? "",
+    showWhatsapp:  m.showWhatsapp  ?? false,
+    phone:         m.phone         ?? null,
+    country:       m.country       ?? "",
+    state:         m.state         ?? "",
+    city:          m.city          ?? "",
+    role:          m.role          ?? "user",
+    groupJoinDate: m.groupJoinDate ?? null,
+    photoUrl:      m.photoUrl      ?? null,
+    allPhotos:     Array.isArray(m.allPhotos) ? m.allPhotos : [],
+    socials:       m.socials ? { ...EMPTY_SOCIALS, ...m.socials } : { ...EMPTY_SOCIALS },
+  }
+}
+
 function calcAge(birthDate: string | null): number | null {
   if (!birthDate) return null
   const today = new Date()
   const bd    = new Date(birthDate)
-  let age     = today.getFullYear() - bd.getFullYear()
-  const m     = today.getMonth() - bd.getMonth()
+  if (isNaN(bd.getTime())) return null
+  let age = today.getFullYear() - bd.getFullYear()
+  const m = today.getMonth() - bd.getMonth()
   if (m < 0 || (m === 0 && today.getDate() < bd.getDate())) age--
-  return age
+  return age >= 0 ? age : null
 }
 
 function memberBadge(m: Member): { icon: React.ReactNode; label: string; cls: string } | null {
-  if (!m.groupJoinDate) return null
-  const joined  = new Date(m.groupJoinDate)
-  const now     = new Date()
-  const months  = (now.getFullYear() - joined.getFullYear()) * 12 + (now.getMonth() - joined.getMonth())
-
   if (m.role === "admin") {
     return { icon: <Shield className="h-3 w-3" />, label: "Admin", cls: "bg-primary/90 text-primary-foreground" }
   }
-  if (months <= 6) {
-    return { icon: <Sparkles className="h-3 w-3" />, label: "Nuevo", cls: "bg-gold/90 text-white" }
-  }
-  if (months >= 12) {
-    return { icon: <Handshake className="h-3 w-3" />, label: "Confianza", cls: "bg-emerald-600/90 text-white" }
-  }
+  if (!m.groupJoinDate) return null
+  const joined = new Date(m.groupJoinDate)
+  if (isNaN(joined.getTime())) return null
+  const now    = new Date()
+  const months = (now.getFullYear() - joined.getFullYear()) * 12 + (now.getMonth() - joined.getMonth())
+  if (months <= 6)  return { icon: <Sparkles className="h-3 w-3" />,  label: "Nuevo",     cls: "bg-amber-500/90 text-white" }
+  if (months >= 12) return { icon: <Handshake className="h-3 w-3" />, label: "Confianza", cls: "bg-emerald-600/90 text-white" }
   return null
 }
 
@@ -156,36 +120,36 @@ function locationLabel(m: Member): string {
   return [m.city, m.state, m.country].filter(Boolean).slice(0, 2).join(", ")
 }
 
-const GENDER_FILTER = [
-  { value: "all",  label: "Todos",      icon: <Users className="h-4 w-4" /> },
-  { value: "M",    label: "Hermanos",   icon: null },
-  { value: "F",    label: "Hermanas",   icon: null },
+const GENDER_OPTS = [
+  { value: "all", label: "Todos",    icon: <Users className="h-4 w-4" /> },
+  { value: "M",   label: "Hermanos", icon: null },
+  { value: "F",   label: "Hermanas", icon: null },
 ]
 
-
 // ---------------------------------------------------------------------------
-// Sub-componente: perfil expandido (Sheet)
+// Sub-componente: Sheet de perfil expandido
 // ---------------------------------------------------------------------------
 function MemberSheet({
-  member,
-  open,
-  onClose,
+  member, open, onClose,
 }: {
-  member: Member | null
-  open:   boolean
+  member:  Member | null
+  open:    boolean
   onClose: () => void
 }) {
   const [photoIdx, setPhotoIdx] = useState(0)
-
-  useEffect(() => { setPhotoIdx(0) }, [member])
+  useEffect(() => { setPhotoIdx(0) }, [member?.id])
 
   if (!member) return null
 
-  const photos   = member.allPhotos?.length > 0 ? member.allPhotos : [null]
-  const age      = calcAge(member.birthDate)
-  const badge    = memberBadge(member)
-  const location = locationLabel(member)
-  const hasSocials = member.socials ? Object.values(member.socials).some(Boolean) : false
+  // Defensa total: allPhotos siempre es array después de normalizeMember
+  const photos     = member.allPhotos.length > 0 ? member.allPhotos : ([] as (string | null)[])
+  const hasPhotos  = photos.length > 0
+  const currentSrc = hasPhotos ? photos[photoIdx] : null
+
+  const age        = calcAge(member.birthDate)
+  const badge      = memberBadge(member)
+  const location   = locationLabel(member)
+  const hasSocials = Object.values(member.socials).some(Boolean)
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
@@ -193,13 +157,13 @@ function MemberSheet({
         side="right"
         className="w-full sm:max-w-md p-0 overflow-y-auto flex flex-col gap-0"
       >
-        <SheetTitle className="sr-only">{member.fullName}</SheetTitle>
+        <SheetTitle className="sr-only">Perfil de {member.fullName}</SheetTitle>
 
-        {/* ── Galería de fotos ── */}
+        {/* ── Galería ── */}
         <div className="relative w-full aspect-[4/3] bg-secondary/40 shrink-0 overflow-hidden">
-          {photos[photoIdx] ? (
+          {currentSrc ? (
             <img
-              src={photos[photoIdx]!}
+              src={currentSrc}
               alt={`Foto de ${member.fullName}`}
               className="w-full h-full object-cover"
             />
@@ -209,13 +173,11 @@ function MemberSheet({
             </div>
           )}
 
-          {/* Degradado inferior */}
           <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
 
-          {/* Nombre sobre la foto */}
           <div className="absolute bottom-4 left-4 right-4">
             <h2 className="text-white font-bold text-xl leading-tight drop-shadow">
-              {member.fullName}{age ? `, ${age}` : ""}
+              {member.fullName}{age !== null ? `, ${age}` : ""}
             </h2>
             {location && (
               <p className="text-white/80 text-xs mt-0.5 flex items-center gap-1">
@@ -225,8 +187,8 @@ function MemberSheet({
             )}
           </div>
 
-          {/* Navegación fotos */}
-          {photos.length > 1 && (
+          {/* Navegación entre fotos */}
+          {hasPhotos && photos.length > 1 && (
             <>
               <button
                 onClick={() => setPhotoIdx((i) => Math.max(0, i - 1))}
@@ -244,9 +206,7 @@ function MemberSheet({
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
-
-              {/* Dots */}
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {photos.map((_, i) => (
                   <button
                     key={i}
@@ -259,7 +219,6 @@ function MemberSheet({
             </>
           )}
 
-          {/* Badges */}
           {badge && (
             <div className="absolute top-3 right-3">
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold shadow ${badge.cls}`}>
@@ -272,40 +231,31 @@ function MemberSheet({
         {/* ── Contenido del perfil ── */}
         <div className="flex-1 px-5 py-5 space-y-5">
 
-          {/* Barrio y estaca */}
           {(member.ward || member.stake) && (
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <Church className="h-4 w-4 shrink-0 mt-0.5 text-primary/60" />
-              <span>
-                {[member.ward, member.stake].filter(Boolean).join(" · ")}
-              </span>
+              <span>{[member.ward, member.stake].filter(Boolean).join(" · ")}</span>
             </div>
           )}
 
-          {/* Biografía */}
           {member.bio && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
                 Sobre mí
               </p>
-              <p className="text-sm text-foreground leading-relaxed">
-                {member.bio}
-              </p>
+              <p className="text-sm text-foreground leading-relaxed">{member.bio}</p>
             </div>
           )}
 
-          {/* ── Contacto ── */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Contacto
             </p>
-
             {member.showWhatsapp && member.phone ? (
               <a
                 href={`https://wa.me/${member.phone.replace(/\D/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 w-full"
               >
                 <Button className="w-full bg-[#25D366] hover:bg-[#1ebe5b] text-white font-semibold gap-2">
                   <MessageCircle className="h-4 w-4" />
@@ -314,12 +264,11 @@ function MemberSheet({
               </a>
             ) : (
               <p className="text-xs text-muted-foreground italic">
-                Este miembro no compartió WhatsApp.
+                Este miembro no compartió su WhatsApp.
               </p>
             )}
           </div>
 
-          {/* ── Redes sociales ── */}
           {hasSocials && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
@@ -327,22 +276,22 @@ function MemberSheet({
               </p>
               <div className="flex flex-wrap gap-2">
                 {member.socials.instagram && (
-                  <SocialLink href={`https://instagram.com/${member.socials.instagram}`} icon={<Instagram className="h-4 w-4" />} label="Instagram" />
+                  <SocialPill href={`https://instagram.com/${member.socials.instagram}`} icon={<Instagram className="h-4 w-4" />} label="Instagram" />
                 )}
                 {member.socials.facebook && (
-                  <SocialLink href={`https://facebook.com/${member.socials.facebook}`} icon={<Facebook className="h-4 w-4" />} label="Facebook" />
+                  <SocialPill href={`https://facebook.com/${member.socials.facebook}`} icon={<Facebook className="h-4 w-4" />} label="Facebook" />
                 )}
                 {member.socials.linkedin && (
-                  <SocialLink href={member.socials.linkedin.startsWith("http") ? member.socials.linkedin : `https://linkedin.com/in/${member.socials.linkedin}`} icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" />
+                  <SocialPill href={member.socials.linkedin.startsWith("http") ? member.socials.linkedin : `https://linkedin.com/in/${member.socials.linkedin}`} icon={<Linkedin className="h-4 w-4" />} label="LinkedIn" />
                 )}
                 {member.socials.twitter && (
-                  <SocialLink href={`https://x.com/${member.socials.twitter}`} icon={<Twitter className="h-4 w-4" />} label="X / Twitter" />
+                  <SocialPill href={`https://x.com/${member.socials.twitter}`} icon={<Twitter className="h-4 w-4" />} label="X / Twitter" />
                 )}
                 {member.socials.tiktok && (
-                  <SocialLink href={`https://tiktok.com/@${member.socials.tiktok}`} icon={<span className="text-xs font-bold">TT</span>} label="TikTok" />
+                  <SocialPill href={`https://tiktok.com/@${member.socials.tiktok}`} icon={<span className="text-[10px] font-black">TT</span>} label="TikTok" />
                 )}
                 {member.socials.website && (
-                  <SocialLink href={member.socials.website} icon={<Globe className="h-4 w-4" />} label="Sitio web" />
+                  <SocialPill href={member.socials.website} icon={<Globe className="h-4 w-4" />} label="Sitio web" />
                 )}
               </div>
             </div>
@@ -354,7 +303,7 @@ function MemberSheet({
   )
 }
 
-function SocialLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function SocialPill({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
   return (
     <a
       href={href}
@@ -372,54 +321,46 @@ function SocialLink({ href, icon, label }: { href: string; icon: React.ReactNode
 // Componente principal
 // ---------------------------------------------------------------------------
 export function DirectoryClient() {
-  // ── Montaje diferido (SSR / LastPass shield) ──────────────────────────────
   const [isMounted, setIsMounted] = useState(false)
   useEffect(() => { setIsMounted(true) }, [])
 
-  // ── Datos ─────────────────────────────────────────────────────────────────
+  // ── Datos del backend ──────────────────────────────────────────────────────
   const [members,   setMembers]   = useState<Member[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error,     setError]     = useState<string | null>(null)
-  const [usingMock, setUsingMock] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/get_directory.php`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Error del servidor (HTTP ${r.status})`)
+        return r.json()
+      })
       .then((json) => {
         if (json.status === "success") {
-          const data: Member[] = json.data ?? []
-          if (data.length === 0) {
-            // BD vacía o sin usuarios activos → mostrar mock para revisión de diseño
-            setMembers(MOCK_MEMBERS)
-            setUsingMock(true)
-          } else {
-            // Normalizar campos que el backend v1 puede omitir
-            const normalized = data.map((m) => ({
-              ...m,
-              allPhotos: m.allPhotos  ?? [],
-              socials:   m.socials    ?? { instagram: "", facebook: "", linkedin: "", twitter: "", tiktok: "", website: "" },
-              gender:    m.gender     ?? "",
-              bio:       m.bio        ?? "",
-            }))
-            setMembers(normalized)
-          }
+          const normalized = (json.data ?? []).map(normalizeMember)
+          setMembers(normalized)
         } else {
           setError(json.message ?? "Error al cargar el directorio.")
         }
       })
-      .catch(() => setError("Error de conexión. Verifica que el servidor esté disponible."))
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Error de conexión con el servidor.")
+      })
       .finally(() => setIsLoading(false))
   }, [])
 
   // ── Filtros ───────────────────────────────────────────────────────────────
   const [genderFilter, setGenderFilter] = useState("all")
-  const [ageMin,       setAgeMin]       = useState(0)
-  const [ageMax,       setAgeMax]       = useState(999)
+  const [ageMinStr,    setAgeMinStr]    = useState("")
+  const [ageMaxStr,    setAgeMaxStr]    = useState("")
   const [country,      setCountry]      = useState("all")
   const [query,        setQuery]        = useState("")
 
+  const ageMin = ageMinStr === "" ? null : parseInt(ageMinStr, 10)
+  const ageMax = ageMaxStr === "" ? null : parseInt(ageMaxStr, 10)
+
   const countries = useMemo(
-    () => ["all", ...Array.from(new Set(members.map((m) => m.country).filter(Boolean))).sort()],
+    () => Array.from(new Set(members.map((m) => m.country).filter(Boolean))).sort(),
     [members],
   )
 
@@ -427,32 +368,35 @@ export function DirectoryClient() {
     const q = query.trim().toLowerCase()
     return members.filter((m) => {
       if (genderFilter !== "all" && m.gender !== genderFilter) return false
-      if (country !== "all" && m.country !== country) return false
+      if (country      !== "all" && m.country !== country)     return false
       const age = calcAge(m.birthDate)
-      if (age !== null) {
-        if (ageMin > 0   && age < ageMin) return false
-        if (ageMax < 999 && age > ageMax) return false
-      }
+      if (ageMin !== null && !isNaN(ageMin) && (age === null || age < ageMin)) return false
+      if (ageMax !== null && !isNaN(ageMax) && (age === null || age > ageMax)) return false
       if (q) {
         return (
           m.fullName.toLowerCase().includes(q) ||
           m.ward.toLowerCase().includes(q)     ||
           m.stake.toLowerCase().includes(q)    ||
-          m.city.toLowerCase().includes(q)
+          m.city.toLowerCase().includes(q)     ||
+          m.state.toLowerCase().includes(q)
         )
       }
       return true
     })
   }, [members, genderFilter, ageMin, ageMax, country, query])
 
-  // ── Perfil seleccionado ───────────────────────────────────────────────────
   const [selected, setSelected] = useState<Member | null>(null)
 
-  // ── Loading skeleton ──────────────────────────────────────────────────────
+  // ── Skeleton de carga ─────────────────────────────────────────────────────
   if (isLoading || !isMounted) {
     return (
       <div className="space-y-6">
-        <div className="h-10 w-full rounded-md bg-secondary/60 animate-pulse" />
+        <div className="h-10 w-full rounded-xl bg-secondary/60 animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-10 flex-1 rounded-md bg-secondary/50 animate-pulse" />
+          <div className="h-10 flex-1 rounded-md bg-secondary/50 animate-pulse" />
+          <div className="h-10 flex-1 rounded-md bg-secondary/50 animate-pulse" />
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-square rounded-2xl bg-secondary/60 animate-pulse" />
@@ -462,10 +406,15 @@ export function DirectoryClient() {
     )
   }
 
+  // ── Error de conexión / backend ───────────────────────────────────────────
   if (error) {
     return (
-      <div className="rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive text-center">
-        {error}
+      <div className="flex items-start gap-3 rounded-xl bg-destructive/10 border border-destructive/30 px-5 py-4 text-sm text-destructive">
+        <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold mb-0.5">No se pudo cargar El BOOK</p>
+          <p className="text-xs opacity-80">{error}</p>
+        </div>
       </div>
     )
   }
@@ -473,17 +422,9 @@ export function DirectoryClient() {
   return (
     <div className="space-y-5">
 
-      {/* ── Mock notice ── */}
-      {usingMock && (
-        <div className="flex items-center gap-2 rounded-md bg-gold/10 border border-gold/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-          <Sparkles className="h-3.5 w-3.5 shrink-0" />
-          Vista previa con datos de prueba — conecta el backend para ver miembros reales.
-        </div>
-      )}
-
-      {/* ── Filtro de género (Toggle Group principal) ── */}
+      {/* ── Toggle género ── */}
       <div className="flex rounded-xl border border-border/60 bg-secondary/30 p-1 gap-1">
-        {GENDER_FILTER.map((g) => (
+        {GENDER_OPTS.map((g) => (
           <button
             key={g.value}
             onClick={() => setGenderFilter(g.value)}
@@ -502,53 +443,37 @@ export function DirectoryClient() {
       {/* ── Filtros secundarios ── */}
       <div className="flex flex-wrap gap-2">
 
-        {/* Rango de edad: mínimo */}
-        <div className="flex-1 min-w-[120px]">
-          <Input
-            type="number"
-            min={18}
-            max={99}
-            placeholder="Edad Mín. (Ej. 30)"
-            value={ageMin === 0 ? "" : ageMin}
-            onChange={(e) => {
-              const v = e.target.value === "" ? 0 : Math.max(0, Math.min(99, Number(e.target.value)))
-              setAgeMin(v)
-            }}
-            aria-label="Edad mínima"
-          />
-        </div>
+        <Input
+          type="number"
+          min={18} max={99}
+          placeholder="Edad Mín. (ej. 30)"
+          value={ageMinStr}
+          onChange={(e) => setAgeMinStr(e.target.value)}
+          className="flex-1 min-w-[130px]"
+          aria-label="Edad mínima"
+        />
 
-        {/* Rango de edad: máximo */}
-        <div className="flex-1 min-w-[120px]">
-          <Input
-            type="number"
-            min={18}
-            max={99}
-            placeholder="Edad Máx."
-            value={ageMax === 999 ? "" : ageMax}
-            onChange={(e) => {
-              const v = e.target.value === "" ? 999 : Math.max(0, Math.min(99, Number(e.target.value)))
-              setAgeMax(v)
-            }}
-            aria-label="Edad máxima"
-          />
-        </div>
+        <Input
+          type="number"
+          min={18} max={99}
+          placeholder="Edad Máx. (ej. 50)"
+          value={ageMaxStr}
+          onChange={(e) => setAgeMaxStr(e.target.value)}
+          className="flex-1 min-w-[130px]"
+          aria-label="Edad máxima"
+        />
 
-        {/* País */}
-        <div className="flex-1 min-w-[140px]">
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="all">Todos los países</option>
-            {countries.slice(1).map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          className="flex-1 min-w-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="all">Todos los países</option>
+          {countries.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
 
-        {/* Buscador */}
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -565,19 +490,30 @@ export function DirectoryClient() {
       {/* ── Contador ── */}
       <p className="text-xs text-muted-foreground">
         {filtered.length === members.length
-          ? `${members.length} miembros`
+          ? `${members.length} miembro${members.length !== 1 ? "s" : ""}`
           : `${filtered.length} de ${members.length} coinciden`}
         {genderFilter === "F" ? " · Hermanas" : genderFilter === "M" ? " · Hermanos" : ""}
-        {(ageMin > 0 || ageMax < 999)
-          ? ` · ${ageMin > 0 ? ageMin : "—"} – ${ageMax < 999 ? ageMax : "—"} años`
+        {(ageMin !== null || ageMax !== null)
+          ? ` · ${ageMin ?? "—"}–${ageMax ?? "—"} años`
           : ""}
       </p>
 
       {/* ── Grid de tarjetas ── */}
-      {filtered.length === 0 ? (
+      {members.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground text-sm">
           <Users className="h-10 w-10 opacity-20" />
-          No se encontraron miembros con estos filtros.
+          <p>Aún no hay miembros activos en el directorio.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-20 text-muted-foreground text-sm">
+          <Search className="h-10 w-10 opacity-20" />
+          <p>No se encontraron miembros con estos filtros.</p>
+          <button
+            onClick={() => { setGenderFilter("all"); setAgeMinStr(""); setAgeMaxStr(""); setCountry("all"); setQuery("") }}
+            className="text-primary text-xs hover:underline"
+          >
+            Limpiar filtros
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -593,7 +529,6 @@ export function DirectoryClient() {
                 className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none transition-all duration-200 cursor-pointer text-left"
                 aria-label={`Ver perfil de ${member.fullName}`}
               >
-                {/* ── Foto de fondo ── */}
                 {member.photoUrl ? (
                   <img
                     src={member.photoUrl}
@@ -606,10 +541,8 @@ export function DirectoryClient() {
                   </div>
                 )}
 
-                {/* ── Degradado inferior ── */}
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
 
-                {/* ── Badge esquina superior derecha ── */}
                 {badge && (
                   <div className="absolute top-2 right-2 z-10">
                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm ${badge.cls}`}>
@@ -619,10 +552,9 @@ export function DirectoryClient() {
                   </div>
                 )}
 
-                {/* ── Texto inferior ── */}
                 <div className="absolute inset-x-0 bottom-0 p-3 z-10">
                   <p className="text-white font-bold text-sm leading-tight drop-shadow-md truncate">
-                    {member.fullName}{age ? `, ${age}` : ""}
+                    {member.fullName}{age !== null ? `, ${age}` : ""}
                   </p>
                   {location && (
                     <p className="text-white/75 text-[11px] mt-0.5 truncate leading-tight">
@@ -630,14 +562,12 @@ export function DirectoryClient() {
                     </p>
                   )}
                 </div>
-
               </button>
             )
           })}
         </div>
       )}
 
-      {/* ── Sheet de perfil expandido ── */}
       <MemberSheet
         member={selected}
         open={selected !== null}

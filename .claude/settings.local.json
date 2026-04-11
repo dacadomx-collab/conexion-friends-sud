@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls c:/xampp/htdocs/brokersconnect_dev/brokers/app/*.php)",
+      "Bash(xargs -I{} basename {})",
+      "Bash(grep -E \"^CREATE TABLE|^\\\\s+\\\\`\" c:/xampp/htdocs/brokersconnect_dev/BackUp/brokersconnect_bd.sql)",
+      "Bash(grep -i \"INSERT INTO \\\\`companies\\\\`\" c:/xampp/htdocs/brokersconnect_dev/BackUp/brokersconnect_bd.sql)"
+    ]
+  }
+}

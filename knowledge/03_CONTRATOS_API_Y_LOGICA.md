@@ -472,3 +472,12 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 | 403 | `requesterId` no es admin o no existe |
 | 500 | Error interno de servidor |
      Cualquier otro valor rechaza el registro con HTTP 400.
+
+## 🚨 ENDPOINTS CRÍTICOS Y SEGURIDAD (HALLAZGOS DE AUDITORÍA)
+
+* **Autenticación Dual:** El sistema usa `auth:api` (Laravel Passport/Bearer Token) para el ecosistema `/api/` y sesión nativa web para el panel interno.
+* **El Guardián del Panel:** Todo el panel está protegido por el triple middleware: `auth` → `company` → `companyPayment` (Login -> Empresa -> Pago Activo).
+* **`POST /api/auth/login`**: Punto de entrada crítico. Si falla, el ecosistema frontend/app se queda ciego.
+* **`POST /files/upload/store`**: El controlador más complejo (The Monster). Gestiona 4 tipos de archivos, miniaturas con Intervention Image, rutas dinámicas por ID de empresa y límites de subida (20 imgs, 50MB video). *Precaución máxima al conectar la IA aquí.*
+* **`POST /properties/store` & `update`**: Núcleo del CRM (14 reglas de validación estricta).
+* **VULNERABILIDAD PURGADA:** La ruta GET `/generar-codex` (que exponía la base de datos) queda estrictamente prohibida en producción.

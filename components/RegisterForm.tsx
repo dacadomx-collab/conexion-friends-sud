@@ -25,6 +25,7 @@ interface FormData {
   phone: string
   birthDate: string
   password: string
+  gender: "M" | "F" | ""
   acceptedCodeOfConduct: boolean
 }
 
@@ -57,6 +58,7 @@ const INITIAL_FORM: FormData = {
   phone: "",
   birthDate: "",
   password: "",
+  gender: "",
   acceptedCodeOfConduct: false,
 }
 
@@ -77,6 +79,11 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setApiError(null)
+  }
+
+  function handleGender(value: "M" | "F") {
+    setFormData((prev) => ({ ...prev, gender: value }))
     setApiError(null)
   }
 
@@ -111,6 +118,7 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
           phone: formData.phone,
           birthDate: formData.birthDate,
           password: formData.password,
+          gender: formData.gender,
           acceptedCodeOfConduct: formData.acceptedCodeOfConduct,
         }),
       })
@@ -238,6 +246,41 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
               </FieldDescription>
             </Field>
 
+            {/* ── Género ── */}
+            <Field>
+              <FieldLabel>Soy...</FieldLabel>
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                {(
+                  [
+                    { value: "M", label: "Hermano", emoji: "🙍‍♂️" },
+                    { value: "F", label: "Hermana", emoji: "🙍‍♀️" },
+                  ] as const
+                ).map(({ value, label, emoji }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => handleGender(value)}
+                    className={[
+                      "flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-3 text-sm font-medium transition-all duration-150",
+                      formData.gender === value
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/50 hover:bg-secondary/80",
+                      isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+                    ].join(" ")}
+                  >
+                    <span className="text-2xl leading-none">{emoji}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+              {formData.gender === "" && (
+                <FieldDescription className="text-xs text-amber-600 dark:text-amber-400">
+                  Requerido — usado para el directorio de miembros.
+                </FieldDescription>
+              )}
+            </Field>
+
             {/* ── Contraseña ── */}
             <Field>
               <FieldLabel htmlFor="reg-password">Contraseña</FieldLabel>
@@ -313,7 +356,7 @@ export function RegisterForm({ onSuccess, redirectTo }: RegisterFormProps) {
           <Button
             type="submit"
             className="w-full font-semibold mt-2"
-            disabled={isLoading || !formData.acceptedCodeOfConduct}
+            disabled={isLoading || !formData.acceptedCodeOfConduct || formData.gender === ""}
           >
             {isLoading ? "Creando cuenta..." : "Crear mi cuenta"}
           </Button>

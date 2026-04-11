@@ -24,6 +24,7 @@ interface RegisterData {
   phone:                 string
   birthDate:             string
   password:              string
+  gender:                "M" | "F" | ""
   acceptedCodeOfConduct: boolean
 }
 
@@ -36,6 +37,7 @@ const REGISTER_INITIAL: RegisterData = {
   phone:                 "",
   birthDate:             "",
   password:              "",
+  gender:                "",
   acceptedCodeOfConduct: false,
 }
 
@@ -192,6 +194,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           phone:                 reg.phone,
           birthDate:             reg.birthDate,
           password:              reg.password,
+          gender:                reg.gender,
           acceptedCodeOfConduct: reg.acceptedCodeOfConduct,
         }),
       })
@@ -409,6 +412,44 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   <FieldDescription className="text-xs text-amber-600 dark:text-amber-400">
                     Este dato no podrá cambiarse después.
                   </FieldDescription>
+                </Field>
+
+                {/* ── Género ── */}
+                <Field>
+                  <FieldLabel>Soy...</FieldLabel>
+                  <div className="grid grid-cols-2 gap-3 mt-1">
+                    {(
+                      [
+                        { value: "M", label: "Hermano", emoji: "🙍‍♂️" },
+                        { value: "F", label: "Hermana", emoji: "🙍‍♀️" },
+                      ] as const
+                    ).map(({ value, label, emoji }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={regLoading}
+                        onClick={() => {
+                          setReg((prev) => ({ ...prev, gender: value }))
+                          setRegError(null)
+                        }}
+                        className={[
+                          "flex flex-col items-center justify-center gap-1 rounded-xl border-2 py-3 text-sm font-medium transition-all duration-150",
+                          reg.gender === value
+                            ? "border-primary bg-primary/10 text-primary shadow-sm"
+                            : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/50 hover:bg-secondary/80",
+                          regLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+                        ].join(" ")}
+                      >
+                        <span className="text-2xl leading-none">{emoji}</span>
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {reg.gender === "" && (
+                    <FieldDescription className="text-xs text-amber-600 dark:text-amber-400">
+                      Requerido — usado para el directorio de miembros.
+                    </FieldDescription>
+                  )}
                 </Field>
 
                 {/* ── Contraseña ── */}

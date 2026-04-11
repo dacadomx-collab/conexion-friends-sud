@@ -96,7 +96,10 @@ export function ProfileForm({ userId, initialData, onSuccess }: ProfileFormProps
         catch { return }   // si la respuesta no es JSON, ignorar silenciosamente
 
         if (json.status === 'success' && json.data) {
-          setFormData((prev) => ({ ...prev, ...json.data }))
+          const safe = Object.fromEntries(
+            Object.entries(json.data).map(([k, v]) => [k, v === null ? "" : v])
+          )
+          setFormData((prev) => ({ ...prev, ...safe }))
         }
       } catch {
         // Error de red — el formulario queda vacío; el usuario puede igualmente rellenarlo

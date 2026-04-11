@@ -62,9 +62,7 @@ function buildCards(isAdmin: boolean): DashCard[] {
       title:       "El BOOK",
       description: "Explora el directorio de Adultos Solteros SUD y conecta con la hermandad.",
       href:        "/directorio",
-      badge:       isAdmin ? undefined : "Próximamente",
-      comingSoon:  !isAdmin,
-      disabled:    !isAdmin,
+      badge:       "¡Nuevo!",
     },
     {
       icon:        <Tent className="h-7 w-7" />,

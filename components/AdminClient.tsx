@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { API_BASE_URL } from "@/lib/api"
+import { InvitationPasswordAdmin } from "@/components/InvitationPasswordAdmin"
 
 // ---------------------------------------------------------------------------
 const CFS_SESSION_KEY = "cfs_session"
@@ -461,6 +462,12 @@ export function AdminClient() {
             {query ? ` coinciden con "${query}"` : " en total"}
           </p>
         )}
+
+        {/* ── Divisor ── */}
+        <div className="border-t border-border/60 pt-2" />
+
+        {/* ── Sección: Contraseña de Invitación Master ── */}
+        <InvitationPasswordAdmin adminId={session.id} />
 
       </main>
     </div>

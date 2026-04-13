@@ -1,16 +1,45 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
 import { AuthForm } from "@/components/auth-form"
-import { Users, Heart, Shield } from "lucide-react"
+import { Users, Heart, Shield, Loader2 } from "lucide-react"
+import { CFS_INVITE_KEY } from "@/components/GatekeeperClient"
 
 // -----------------------------------------------------------------------------
 // Landing page — Server Component shell + AuthForm (Client Component)
 // La autenticación ocurre dentro de AuthForm, que al tener éxito llama
 // router.push("/dashboard") internamente. No hay estado isLoggedIn aquí.
+//
+// PROTECCIÓN GATEKEEPER:
+// Si el usuario no ha pasado por /acceso (cfs_invite_valid en sessionStorage)
+// y tampoco tiene sesión activa (cfs_session en localStorage), es redirigido
+// a /acceso. Esta lógica no altera el diseño ni la funcionalidad existente.
 // -----------------------------------------------------------------------------
 export default function HomePage() {
+  const router = useRouter()
+  const [gateChecked, setGateChecked] = useState(false)
+
+  useEffect(() => {
+    const inviteValid = sessionStorage.getItem(CFS_INVITE_KEY) === "1"
+    const hasSession  = !!localStorage.getItem("cfs_session")
+    if (!inviteValid && !hasSession) {
+      router.replace("/acceso")
+      return
+    }
+    setGateChecked(true)
+  }, [router])
+
+  if (!gateChecked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - Two Column Layout */}

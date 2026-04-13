@@ -22,7 +22,7 @@ $body        = json_decode(file_get_contents('php://input'), true);
 $requesterId = filter_var($body['requesterId'] ?? null, FILTER_VALIDATE_INT);
 $newPassword = (string)($body['newInvitePassword'] ?? '');
 
-// ── Validaciones básicas ──────────────────────────────────────────────────────
+// ── Validaciones de input (antes de tocar la DB) ──────────────────────────────
 if (!$requesterId || $requesterId <= 0) {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'requesterId inválido.', 'data' => []]);
@@ -39,42 +39,53 @@ if (strlen($newPassword) < 6) {
     exit;
 }
 
-$db = (new Database())->getConnection();
+try {
+    $db = (new Database())->getConnection();
 
-// ── Verificar que requesterId sea admin ───────────────────────────────────────
-$check = $db->prepare("SELECT role FROM users WHERE id = :id LIMIT 1");
-$check->execute([':id' => $requesterId]);
-$admin = $check->fetch();
+    // ── Verificar que requesterId sea admin ───────────────────────────────────
+    $check = $db->prepare("SELECT role FROM users WHERE id = :id LIMIT 1");
+    $check->execute([':id' => $requesterId]);
+    $admin = $check->fetch();
 
-if (!$admin || $admin['role'] !== 'admin') {
-    http_response_code(403);
+    if (!$admin || $admin['role'] !== 'admin') {
+        http_response_code(403);
+        echo json_encode([
+            'status'  => 'error',
+            'message' => 'Acceso denegado. Solo administradores pueden realizar esta acción.',
+            'data'    => [],
+        ]);
+        exit;
+    }
+
+    // ── Hashear y registrar ───────────────────────────────────────────────────
+    $plainCode = $newPassword;                                          // Guardar antes de unset
+    $hash      = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+    unset($newPassword);                                                // Destruir texto plano
+
+    $insert = $db->prepare(
+        "INSERT INTO invitation_password_log (admin_id, plain_code, password_hash)
+         VALUES (:admin_id, :plain_code, :password_hash)"
+    );
+    $insert->execute([
+        ':admin_id'      => $requesterId,
+        ':plain_code'    => $plainCode,
+        ':password_hash' => $hash,
+    ]);
+    unset($plainCode);                                                  // Destruir de memoria
+
+    http_response_code(200);
     echo json_encode([
-        'status'  => 'error',
-        'message' => 'Acceso denegado. Solo administradores pueden realizar esta acción.',
+        'status'  => 'success',
+        'message' => 'Contraseña de invitación actualizada correctamente.',
         'data'    => [],
     ]);
-    exit;
+
+} catch (\Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Error interno del servidor. No se pudo guardar la contraseña.',
+        'debug'   => $e->getMessage(),
+        'data'    => [],
+    ]);
 }
-
-// ── Hashear y registrar ───────────────────────────────────────────────────────
-$plainCode = $newPassword;                                      // Guardar antes de hacer unset
-$hash      = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
-unset($newPassword); // Destruir variable original tras hashear
-
-$insert = $db->prepare(
-    "INSERT INTO invitation_password_log (admin_id, plain_code, password_hash)
-     VALUES (:admin_id, :plain_code, :password_hash)"
-);
-$insert->execute([
-    ':admin_id'      => $requesterId,
-    ':plain_code'    => $plainCode,
-    ':password_hash' => $hash,
-]);
-unset($plainCode); // Destruir texto plano de memoria tras el INSERT
-
-http_response_code(200);
-echo json_encode([
-    'status'  => 'success',
-    'message' => 'Contraseña de invitación actualizada correctamente.',
-    'data'    => [],
-]);

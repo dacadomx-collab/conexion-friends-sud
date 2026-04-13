@@ -25,48 +25,59 @@ if (!$requesterId || $requesterId <= 0) {
     exit;
 }
 
-$db = (new Database())->getConnection();
+try {
+    $db = (new Database())->getConnection();
 
-// ── Verificar que requesterId sea admin ───────────────────────────────────────
-$check = $db->prepare("SELECT role FROM users WHERE id = :id LIMIT 1");
-$check->execute([':id' => $requesterId]);
-$admin = $check->fetch();
+    // ── Verificar que requesterId sea admin ───────────────────────────────────
+    $check = $db->prepare("SELECT role FROM users WHERE id = :id LIMIT 1");
+    $check->execute([':id' => $requesterId]);
+    $admin = $check->fetch();
 
-if (!$admin || $admin['role'] !== 'admin') {
-    http_response_code(403);
+    if (!$admin || $admin['role'] !== 'admin') {
+        http_response_code(403);
+        echo json_encode([
+            'status'  => 'error',
+            'message' => 'Acceso denegado. Solo administradores.',
+            'data'    => [],
+        ]);
+        exit;
+    }
+
+    // ── Consultar historial (sin exponer password_hash) ───────────────────────
+    $stmt = $db->prepare(
+        "SELECT
+             l.id,
+             l.admin_id,
+             l.plain_code,
+             u.full_name  AS adminName,
+             l.created_at AS createdAt
+         FROM  invitation_password_log l
+         INNER JOIN users u ON u.id = l.admin_id
+         ORDER BY l.created_at DESC
+         LIMIT 50"
+    );
+    $stmt->execute();
+    $rows = $stmt->fetchAll();
+
+    $data = array_map(static function (array $r): array {
+        return [
+            'id'        => (int)$r['id'],
+            'adminId'   => (int)$r['admin_id'],
+            'adminName' => $r['adminName'],
+            'plainCode' => $r['plain_code'],
+            'createdAt' => $r['createdAt'],
+        ];
+    }, $rows);
+
+    http_response_code(200);
+    echo json_encode(['status' => 'success', 'data' => $data]);
+
+} catch (\Throwable $e) {
+    http_response_code(500);
     echo json_encode([
         'status'  => 'error',
-        'message' => 'Acceso denegado. Solo administradores.',
+        'message' => 'Error interno del servidor. No se pudo cargar el historial.',
+        'debug'   => $e->getMessage(),
         'data'    => [],
     ]);
-    exit;
 }
-
-// ── Consultar historial (sin exponer password_hash) ───────────────────────────
-$stmt = $db->prepare(
-    "SELECT
-         l.id,
-         l.admin_id,
-         l.plain_code,
-         u.full_name  AS adminName,
-         l.created_at AS createdAt
-     FROM  invitation_password_log l
-     INNER JOIN users u ON u.id = l.admin_id
-     ORDER BY l.created_at DESC
-     LIMIT 50"
-);
-$stmt->execute();
-$rows = $stmt->fetchAll();
-
-$data = array_map(static function (array $r): array {
-    return [
-        'id'        => (int)$r['id'],
-        'adminId'   => (int)$r['admin_id'],
-        'adminName' => $r['adminName'],
-        'plainCode' => $r['plain_code'],
-        'createdAt' => $r['createdAt'],
-    ];
-}, $rows);
-
-http_response_code(200);
-echo json_encode(['status' => 'success', 'data' => $data]);

@@ -12,6 +12,15 @@
   { "status": "success | error", "message": "string", "data": [] }
   ```
 
+- **Estructura de Respuesta de Error 500 (Blindaje \Throwable):**
+  ```json
+  { "status": "error", "message": "Error interno del servidor.", "debug": "PDOException: ...", "data": [] }
+  ```
+  > Todos los endpoints de este módulo envuelven su lógica de DB en `try { ... } catch (\Throwable $e)`.
+  > El campo `debug` expone `$e->getMessage()` para facilitar el diagnóstico. Para producción estricta,
+  > condicionar su emisión con `getenv('APP_ENV') === 'production'` si se desea ocultarlo.
+  > **Nunca** se permiten errores 500 que devuelvan HTML de Apache — el catch garantiza JSON válido siempre.
+
 ---
 
 ## 🛠️ ENDPOINTS REGISTRADOS (CONTRATOS)
@@ -497,26 +506,60 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 }
 ```
 
-**Response Error:**
+**Response Fallo — Contraseña incorrecta (1er intento) — HTTP 401:**
 ```json
 {
   "status":  "error",
-  "message": "string — descripción del error",
+  "message": "Contraseña de invitación incorrecta.",
   "data":    []
 }
 ```
 
-| Código HTTP | Causa |
-| :--- | :--- |
-| 400 | `invitePassword` vacío o faltante |
-| 401 | Contraseña incorrecta (`password_verify` devuelve `false`) |
-| 405 | Método distinto de POST |
-| 503 | No hay contraseña configurada aún en `invitation_password_log` |
-| 500 | Error interno de servidor |
+**Response Advertencia — Contraseña incorrecta (2º intento) — HTTP 401:**
+```json
+{
+  "status":  "warning",
+  "message": "Contraseña incorrecta. Tienes un ÚLTIMO INTENTO antes de que tu IP sea bloqueada por 3 horas.",
+  "data":    []
+}
+```
 
+**Response Bloqueo — IP bloqueada al 3er fallo — HTTP 429:**
+```json
+{
+  "status":  "blocked",
+  "message": "Has excedido el número de intentos permitidos. Tu dirección IP ha sido bloqueada por 3 horas.",
+  "data":    []
+}
+```
+
+**Response Bloqueo — IP ya bloqueada (intentos posteriores) — HTTP 429:**
+```json
+{
+  "status":       "blocked",
+  "message":      "Tu dirección IP está bloqueada por demasiados intentos fallidos. Podrás intentarlo en aproximadamente N minuto(s).",
+  "blockedUntil": "YYYY-MM-DD HH:MM:SS (UTC)",
+  "data":         []
+}
+```
+
+| Código HTTP | `status` | Causa |
+| :--- | :--- | :--- |
+| 200 | `"success"` | Contraseña correcta |
+| 400 | `"error"` | `invitePassword` vacío o faltante |
+| 401 | `"error"` | Contraseña incorrecta (1er intento) |
+| 401 | `"warning"` | Contraseña incorrecta (2º intento — último antes de bloqueo) |
+| 405 | `"error"` | Método distinto de POST |
+| 429 | `"blocked"` | 3+ intentos fallidos — IP bloqueada 3 horas |
+| 503 | `"error"` | No hay contraseña configurada en `invitation_password_log` |
+| 500 | `"error"` | Error interno de servidor |
+
+> **Anti-Brute-Force (tabla `gatekeeper_security`):** Cada IP tiene un contador de intentos. Al 3er fallo se escribe `blocked_until = NOW() + 3 HOURS`. Los intentos mientras bloqueada retornan 429 inmediatamente con el tiempo restante.
+> **Reset:** Contraseña correcta → `attempts = 0`, `blocked_until = NULL`.
 > **Regla de seguridad:** El `password_hash` almacenado **nunca** se expone al frontend. La comparación ocurre 100% en el servidor con `password_verify()`.
 > **Acción frontend en éxito:** `sessionStorage.setItem("cfs_invite_valid", "1")` → `router.replace("/")`.
 > **Patrón de fetch obligatorio:** El cliente usa `AbortController` con timeout de 15 s + helper `parseJsonResponse` (lee `text()` antes de `JSON.parse`) para manejar respuestas HTML de Apache sin silenciar errores. El `finally` siempre llama `setLoading(false)` excepto en el path de navegación exitosa (flag `navigating = true`).
+> **Clasificación de alertas en el frontend:** `status === "blocked" || res.status === 429` → `alertLevel = "blocked"`; `status === "warning"` → `alertLevel = "warning"`; resto → `alertLevel = "error"`.
 
 ---
 

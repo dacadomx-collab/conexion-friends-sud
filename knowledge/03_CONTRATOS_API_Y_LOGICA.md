@@ -473,6 +473,138 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 | 500 | Error interno de servidor |
      Cualquier otro valor rechaza el registro con HTTP 400.
 
+---
+
+### Endpoint: `api/validate_invitation.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/validate_invitation.php`
+- **Autenticación:** Ninguna (endpoint público — es la puerta de entrada)
+- **Alcance de DB:** SELECT en `invitation_password_log` (fila más reciente por `created_at DESC LIMIT 1`).
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "invitePassword": "string — requerido, no vacío"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Acceso concedido.",
+  "data":    []
+}
+```
+
+**Response Error:**
+```json
+{
+  "status":  "error",
+  "message": "string — descripción del error",
+  "data":    []
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `invitePassword` vacío o faltante |
+| 401 | Contraseña incorrecta (`password_verify` devuelve `false`) |
+| 405 | Método distinto de POST |
+| 503 | No hay contraseña configurada aún en `invitation_password_log` |
+| 500 | Error interno de servidor |
+
+> **Regla de seguridad:** El `password_hash` almacenado **nunca** se expone al frontend. La comparación ocurre 100% en el servidor con `password_verify()`.
+> **Acción frontend en éxito:** `sessionStorage.setItem("cfs_invite_valid", "1")` → `router.replace("/")`.
+> **Patrón de fetch obligatorio:** El cliente usa `AbortController` con timeout de 15 s + helper `parseJsonResponse` (lee `text()` antes de `JSON.parse`) para manejar respuestas HTML de Apache sin silenciar errores. El `finally` siempre llama `setLoading(false)` excepto en el path de navegación exitosa (flag `navigating = true`).
+
+---
+
+### Endpoint: `api/update_invitation_password.php`
+- **Método:** `POST`
+- **Content-Type:** `application/json`
+- **Ruta Completa:** `/api/update_invitation_password.php`
+- **Autenticación:** `requesterId` en body JSON — se verifica en BD que sea `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** INSERT en `invitation_password_log` (columnas: `admin_id`, `plain_code`, `password_hash`).
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "requesterId":       "int    — requerido, ID del admin autenticado",
+  "newInvitePassword": "string — requerido, mínimo 6 caracteres"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Contraseña de invitación actualizada correctamente.",
+  "data":    []
+}
+```
+
+**Response Error:**
+```json
+{
+  "status":  "error",
+  "message": "string — descripción del error",
+  "data":    []
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` inválido o `newInvitePassword` menor a 6 caracteres |
+| 403 | `requesterId` no es `role='admin'` o no existe |
+| 405 | Método distinto de POST |
+| 500 | Error interno de servidor |
+
+> **Regla de seguridad:** Se guarda el `plain_code` (para uso admin) y el `password_hash` bcrypt cost 12 (para validación pública). La variable de texto plano se destruye con `unset()` tras el INSERT. El `password_hash` **nunca** viaja al frontend.
+
+---
+
+### Endpoint: `api/get_invitation_log.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/get_invitation_log.php`
+- **Autenticación:** `requesterId` (query param) — se verifica en BD que sea `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** SELECT en `invitation_password_log` INNER JOIN `users`. Retorna últimas 50 entradas ordenadas por `created_at DESC`.
+
+**Query Params:**
+```
+?requesterId=INT  (obligatorio)
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id":        "int    — ID del registro en invitation_password_log",
+      "adminId":   "int    — ID del admin que realizó el cambio (FK users.id)",
+      "adminName": "string — full_name del admin",
+      "plainCode": "string — contraseña en texto plano (visible solo para admins)",
+      "createdAt": "string — YYYY-MM-DD HH:MM:SS (fecha y hora del cambio)"
+    }
+  ]
+}
+```
+
+> La primera entrada del array (`data[0]`) corresponde a la **contraseña activa actual**.
+> El campo `password_hash` está **excluido explícitamente** de la respuesta — nunca se expone.
+> El campo `plainCode` está protegido por la verificación de `role='admin'` en el endpoint.
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` faltante o inválido |
+| 403 | `requesterId` no es admin o no existe |
+| 405 | Método distinto de GET |
+| 500 | Error interno de servidor |
+
+---
+
 ## 🚨 ENDPOINTS CRÍTICOS Y SEGURIDAD (HALLAZGOS DE AUDITORÍA)
 
 * **Autenticación Dual:** El sistema usa `auth:api` (Laravel Passport/Bearer Token) para el ecosistema `/api/` y sesión nativa web para el panel interno.

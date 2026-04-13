@@ -57,17 +57,20 @@ if (!$admin || $admin['role'] !== 'admin') {
 }
 
 // ── Hashear y registrar ───────────────────────────────────────────────────────
-$hash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
-unset($newPassword); // Destruir texto plano
+$plainCode = $newPassword;                                      // Guardar antes de hacer unset
+$hash      = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+unset($newPassword); // Destruir variable original tras hashear
 
 $insert = $db->prepare(
-    "INSERT INTO invitation_password_log (admin_id, password_hash)
-     VALUES (:admin_id, :password_hash)"
+    "INSERT INTO invitation_password_log (admin_id, plain_code, password_hash)
+     VALUES (:admin_id, :plain_code, :password_hash)"
 );
 $insert->execute([
     ':admin_id'      => $requesterId,
+    ':plain_code'    => $plainCode,
     ':password_hash' => $hash,
 ]);
+unset($plainCode); // Destruir texto plano de memoria tras el INSERT
 
 http_response_code(200);
 echo json_encode([

@@ -47,6 +47,7 @@ $stmt = $db->prepare(
     "SELECT
          l.id,
          l.admin_id,
+         l.plain_code,
          u.full_name  AS adminName,
          l.created_at AS createdAt
      FROM  invitation_password_log l
@@ -62,6 +63,7 @@ $data = array_map(static function (array $r): array {
         'id'        => (int)$r['id'],
         'adminId'   => (int)$r['admin_id'],
         'adminName' => $r['adminName'],
+        'plainCode' => $r['plain_code'],
         'createdAt' => $r['createdAt'],
     ];
 }, $rows);

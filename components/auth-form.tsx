@@ -122,6 +122,14 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
     setLoginLoading(true)
 
+    // Flag: si navegamos con éxito, el finally NO resetea el loading para
+    // mantener el spinner visible durante la transición a /dashboard.
+    let navigating = false
+
+    // AbortController: cancela el fetch si el servidor no responde en 15 s.
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), 15_000)
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/login.php`, {
         method:  "POST",
@@ -130,28 +138,36 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           email:    loginEmail.trim(),
           password: loginPassword,
         }),
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       const result = await parseJsonResponse(response)
 
       if (result.status === "success") {
         // Persistir sesión: { id, fullName, email, role, status }
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(result.data))
-        // No reseteamos loginLoading → el botón mantiene el spinner durante la
-        // navegación a /dashboard evitando el parpadeo de la landing page.
+        // Mantenemos loginLoading=true durante la navegación para evitar
+        // el parpadeo de la landing page. El flag impide que finally lo baje.
+        navigating = true
         router.push("/dashboard")
         return
-      } else {
-        setLoginError(result.message ?? "Error desconocido del servidor.")
       }
+
+      setLoginError(result.message ?? "Error desconocido del servidor.")
     } catch (err) {
-      setLoginError(
-        err instanceof Error
+      clearTimeout(timeoutId)
+      const isAbort = err instanceof Error && err.name === "AbortError"
+      const msg = isAbort
+        ? "La solicitud tardó demasiado. Verifica tu conexión e intenta de nuevo."
+        : err instanceof Error
           ? err.message
           : "Error de red. Verifica tu conexión e intenta de nuevo."
-      )
+      console.error("[AuthForm/login] Error en la solicitud:", err)
+      setLoginError(msg)
     } finally {
-      setLoginLoading(false)
+      // Solo baja el spinner si NO estamos navegando a /dashboard.
+      if (!navigating) setLoginLoading(false)
     }
   }
 
@@ -184,6 +200,11 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
     setRegLoading(true)
 
+    let navigating = false
+
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), 15_000)
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/register.php`, {
         method:  "POST",
@@ -197,7 +218,9 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           gender:                reg.gender,
           acceptedCodeOfConduct: reg.acceptedCodeOfConduct,
         }),
+        signal: controller.signal,
       })
+      clearTimeout(timeoutId)
 
       const result = await parseJsonResponse(response)
 
@@ -205,19 +228,24 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         const data = result.data as { id: number; fullName: string; email: string }
         setRegSuccess(result.message ?? "Cuenta creada exitosamente.")
         setReg(REGISTER_INITIAL)
-        // Redirigir al formulario de perfil con el ID del usuario recién creado
+        navigating = true
         router.push(`/perfil?userId=${data.id}`)
-      } else {
-        setRegError(result.message ?? "Error desconocido del servidor.")
+        return
       }
+
+      setRegError(result.message ?? "Error desconocido del servidor.")
     } catch (err) {
-      setRegError(
-        err instanceof Error
+      clearTimeout(timeoutId)
+      const isAbort = err instanceof Error && err.name === "AbortError"
+      const msg = isAbort
+        ? "La solicitud tardó demasiado. Verifica tu conexión e intenta de nuevo."
+        : err instanceof Error
           ? err.message
           : "Error de red. Verifica tu conexión e intenta de nuevo."
-      )
+      console.error("[AuthForm/register] Error en la solicitud:", err)
+      setRegError(msg)
     } finally {
-      setRegLoading(false)
+      if (!navigating) setRegLoading(false)
     }
   }
 

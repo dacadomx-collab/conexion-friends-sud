@@ -4,16 +4,41 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { KeyRound, Loader2, AlertTriangle, ArrowRight, LogIn } from "lucide-react"
-import { Button }    from "@/components/ui/button"
-import { Input }     from "@/components/ui/input"
-import { ConexionLogo } from "@/components/conexion-logo"
-import { API_BASE_URL } from "@/lib/api"
+import { Button }        from "@/components/ui/button"
+import { Input }         from "@/components/ui/input"
+import { ConexionLogo }  from "@/components/conexion-logo"
+import { API_BASE_URL }  from "@/lib/api"
 
 // ---------------------------------------------------------------------------
 // Clave de sessionStorage que acredita haber pasado la puerta en esta sesión.
 // Se comparte con la protección de app/page.tsx.
 // ---------------------------------------------------------------------------
 export const CFS_INVITE_KEY = "cfs_invite_valid"
+
+// ---------------------------------------------------------------------------
+// Timeout para fetch: si el servidor no responde en 15 s abortamos y
+// mostramos un error claro — evita la "cortina gris" por fetch colgado.
+// ---------------------------------------------------------------------------
+const FETCH_TIMEOUT_MS = 15_000
+
+// ---------------------------------------------------------------------------
+// Helper: lee el body como texto y luego parsea JSON.
+// Si el servidor devuelve HTML (ej. Apache 403/500), lanza un error legible
+// en lugar de un SyntaxError mudo que silencia el catch.
+// ---------------------------------------------------------------------------
+async function parseJsonResponse(
+  res: Response,
+): Promise<{ status: string; message: string; data: unknown }> {
+  const text = await res.text()
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(
+      `El servidor devolvió una respuesta inesperada (HTTP ${res.status}). ` +
+      `Posible error de configuración. Detalle: ${text.slice(0, 150)}`,
+    )
+  }
+}
 
 // ---------------------------------------------------------------------------
 export function GatekeeperClient() {
@@ -50,36 +75,59 @@ export function GatekeeperClient() {
       setError("Ingresa la contraseña de invitación.")
       return
     }
+
     setLoading(true)
     setError(null)
+
+    // AbortController: cancela el fetch si supera FETCH_TIMEOUT_MS
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
     try {
       const res  = await fetch(`${API_BASE_URL}/api/validate_invitation.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ invitePassword: password }),
+        signal:  controller.signal,
       })
-      const json = await res.json()
+      clearTimeout(timeoutId)
+
+      const json = await parseJsonResponse(res)
 
       if (json.status === "success") {
         sessionStorage.setItem(CFS_INVITE_KEY, "1")
         router.replace("/")
-      } else {
-        setError(json.message ?? "Contraseña incorrecta. Inténtalo de nuevo.")
-        setPassword("")
-        inputRef.current?.focus()
+        // No llamamos setLoading(false) aquí — el spinner permanece durante
+        // la navegación. El finally lo limpia si algo falla antes de montar /.
+        return
       }
-    } catch {
-      setError("Error de conexión. Verifica tu internet e inténtalo de nuevo.")
+
+      setError(json.message ?? "Contraseña incorrecta. Inténtalo de nuevo.")
+      setPassword("")
+      inputRef.current?.focus()
+
+    } catch (err) {
+      clearTimeout(timeoutId)
+
+      const isAbort = err instanceof Error && err.name === "AbortError"
+      const msg = isAbort
+        ? "La solicitud tardó demasiado. Verifica tu conexión e intenta de nuevo."
+        : err instanceof Error
+          ? err.message
+          : "Error de conexión. Verifica tu internet e inténtalo de nuevo."
+
+      console.error("[GatekeeperClient] Error al validar contraseña de invitación:", err)
+      setError(msg)
+
     } finally {
+      // SIEMPRE libera el loading — único punto de salida para evitar
+      // que la pantalla quede pasmada en caso de error o timeout.
       setLoading(false)
     }
   }
 
   // ── Acceso directo para miembros existentes ───────────────────────────────
   function handleMemberAccess() {
-    // El miembro tiene cfs_session en localStorage, pero igual marcamos la
-    // puerta para que la protección de page.tsx no lo rebote.
     sessionStorage.setItem(CFS_INVITE_KEY, "1")
     router.replace("/")
   }
@@ -140,9 +188,12 @@ export function GatekeeperClient() {
             />
           </div>
 
-          {/* Error */}
+          {/* ErrorBanner */}
           {error && (
-            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2.5 text-sm text-destructive"
+            >
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span>{error}</span>
             </div>

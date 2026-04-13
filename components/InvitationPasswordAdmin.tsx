@@ -12,6 +12,8 @@ import {
   Eye,
   EyeOff,
   History,
+  Copy,
+  Check,
 } from "lucide-react"
 import { Button }               from "@/components/ui/button"
 import { Input }                from "@/components/ui/input"
@@ -23,6 +25,7 @@ interface LogEntry {
   id:        number
   adminId:   number
   adminName: string
+  plainCode: string | null   // null en filas previas a la Migración 05b
   createdAt: string
 }
 
@@ -43,6 +46,12 @@ export function InvitationPasswordAdmin({ adminId }: Props) {
   const [log,         setLog]         = useState<LogEntry[]>([])
   const [loadingLog,  setLoadingLog]  = useState(true)
   const [logError,    setLogError]    = useState<string | null>(null)
+
+  // ── Visibilidad y copiado por fila ────────────────────────────────────────
+  // Guarda el ID de la entrada que tiene su plain_code visible
+  const [visibleId,  setVisibleId]  = useState<number | null>(null)
+  // Guarda el ID de la entrada recién copiada (para mostrar el check)
+  const [copiedId,   setCopiedId]   = useState<number | null>(null)
 
   // ── Cargar historial al montar ────────────────────────────────────────────
   useEffect(() => {
@@ -89,6 +98,7 @@ export function InvitationPasswordAdmin({ adminId }: Props) {
       if (json.status === "success") {
         setSaveOk(true)
         setNewPassword("")
+        setShowPassword(false)
         setTimeout(() => setSaveOk(false), 4000)
         fetchLog() // Refrescar historial
       } else {
@@ -98,6 +108,25 @@ export function InvitationPasswordAdmin({ adminId }: Props) {
       setSaveError("Error de red. Inténtalo de nuevo.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  // ── Copiar al portapapeles ────────────────────────────────────────────────
+  async function handleCopy(entry: LogEntry) {
+    try {
+      await navigator.clipboard.writeText(entry.plainCode ?? "")
+      setCopiedId(entry.id)
+      setTimeout(() => setCopiedId(null), 2500)
+    } catch {
+      // Fallback para navegadores sin Clipboard API
+      const el = document.createElement("textarea")
+      el.value = entry.plainCode ?? ""
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+      setCopiedId(entry.id)
+      setTimeout(() => setCopiedId(null), 2500)
     }
   }
 
@@ -179,7 +208,7 @@ export function InvitationPasswordAdmin({ adminId }: Props) {
             {saveOk && (
               <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                Contraseña de invitación actualizada correctamente.
+                Contraseña de invitación actualizada. Recuerda compartirla con los nuevos miembros.
               </div>
             )}
 
@@ -204,7 +233,7 @@ export function InvitationPasswordAdmin({ adminId }: Props) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-semibold text-foreground">Historial de cambios</span>
+            <span className="text-sm font-semibold text-foreground">Historial de contraseñas</span>
           </div>
           <button
             onClick={fetchLog}
@@ -229,47 +258,89 @@ export function InvitationPasswordAdmin({ adminId }: Props) {
           </div>
         ) : log.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">
-            Aún no hay cambios registrados.
+            Aún no hay contraseñas registradas.
           </p>
         ) : (
           <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
-            {log.map((entry, idx) => (
-              <div
-                key={entry.id}
-                className="flex items-start gap-3 px-4 py-3 bg-background hover:bg-secondary/30 transition-colors"
-              >
-                {/* Indicador activo / histórico */}
-                <div className="shrink-0 mt-1">
-                  {idx === 0 ? (
+            {log.map((entry, idx) => {
+              const isVisible = visibleId === entry.id
+              const isCopied  = copiedId  === entry.id
+              const isActive  = idx === 0
+
+              return (
+                <div
+                  key={entry.id}
+                  className={`px-4 py-3 bg-background transition-colors ${isActive ? "bg-emerald-50/50 dark:bg-emerald-950/20" : "hover:bg-secondary/30"}`}
+                >
+                  {/* ── Fila superior: indicador + admin + fecha ── */}
+                  <div className="flex items-center gap-3 mb-2">
                     <span
-                      className="block w-2 h-2 rounded-full bg-emerald-500 mt-0.5"
-                      title="Contraseña activa actual"
+                      className={`block w-2 h-2 rounded-full shrink-0 ${isActive ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+                      title={isActive ? "Contraseña activa actual" : "Histórica"}
                     />
-                  ) : (
-                    <span className="block w-2 h-2 rounded-full bg-muted-foreground/40 mt-0.5" />
-                  )}
-                </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate leading-tight">
+                        {entry.adminName}
+                        {isActive && (
+                          <span className="ml-2 text-xs font-normal text-emerald-600 dark:text-emerald-400">
+                            · activa
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Admin ID #{entry.adminId}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                      <Clock className="h-3 w-3" />
+                      <span className="tabular-nums">{formatDate(entry.createdAt)}</span>
+                    </div>
+                  </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {entry.adminName}
-                    {idx === 0 && (
-                      <span className="ml-2 text-xs font-normal text-emerald-600 dark:text-emerald-400">
-                        · activa
+                  {/* ── Fila inferior: código con ojo y copiar ── */}
+                  <div className="flex items-center gap-2 pl-5">
+                    <div className="flex-1 flex items-center gap-2 rounded-md bg-secondary/60 border border-border/60 px-3 py-1.5">
+                      <KeyRound className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className={`flex-1 text-sm font-mono tracking-wide select-all ${isActive ? "text-foreground font-semibold" : "text-muted-foreground"}`}>
+                        {isVisible
+                          ? (entry.plainCode ?? "—")
+                          : "•".repeat(Math.min((entry.plainCode ?? "").length, 12) || 6)
+                        }
                       </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    Admin ID #{entry.adminId}
-                  </p>
-                </div>
+                    </div>
 
-                <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                  <Clock className="h-3 w-3" />
-                  <span className="tabular-nums">{formatDate(entry.createdAt)}</span>
+                    {/* Botón ojo */}
+                    <button
+                      type="button"
+                      onClick={() => setVisibleId(isVisible ? null : entry.id)}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      aria-label={isVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      {isVisible
+                        ? <EyeOff className="h-4 w-4" />
+                        : <Eye    className="h-4 w-4" />
+                      }
+                    </button>
+
+                    {/* Botón copiar */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(entry)}
+                      className={`p-1.5 rounded-md transition-colors ${
+                        isCopied
+                          ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      }`}
+                      aria-label="Copiar contraseña"
+                    >
+                      {isCopied
+                        ? <Check className="h-4 w-4" />
+                        : <Copy  className="h-4 w-4" />
+                      }
+                    </button>
+                  </div>
+
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

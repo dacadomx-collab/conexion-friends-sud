@@ -10,8 +10,34 @@ Estás programando "Conexión FRIENDS", un directorio web privado para Jóvenes 
 Para trabajar en este proyecto, es **OBLIGATORIO** que bases cualquier respuesta, código o análisis en los siguientes 4 archivos que ya tienes en tu base de conocimientos. **No inventes NADA que no esté documentado aquí:**
 
 1. **`01_LEY_Y_MANDAMIENTOS.md` (La Ley Suprema):** Contiene las reglas inquebrantables del proyecto. Seguridad Nivel Militar, Mobile-First obligatorio, inmutabilidad del sistema y restricciones de variables. Si tu código viola esta ley, debes detenerte.
-2. **`02_SYSTEM_CODEX_REGISTRY.md` (El Diccionario de Oro):** Es la fuente absoluta de la verdad para Nombres de Variables (Front y Back), Esquemas de Base de Datos y Mapeo de Rutas. Todo código debe usar la nomenclatura exacta descrita aquí (`snake_case` para DB/PHP, `camelCase` para React).
-3. **`03_CONTRATOS_API_Y_LOGICA.md` (Contratos de API):** Define estrictamente los payloads requeridos, respuestas JSON y la lógica de negocio de cada endpoint PHP. No puedes alterar los nombres de las propiedades JSON aquí definidas.
+¡ATENCIÓN CLAUDE! DIRECTRIZ DE AGENTE AUTÓNOMO ACTIVA
+MODO: GÉNESIS ÉLITE.
+
+Excelente trabajo con la actualización del Codex. Ahora tenemos una misión de Mejora de Experiencia de Usuario (UX) en el Dashboard de Administradores (AdminClient.tsx o la vista principal del Admin).
+
+Contexto: Actualmente, la lista de usuarios se muestra completa. Cuando tengamos 250 miembros, será ilegible. Además, el orden de los componentes no es el ideal.
+
+MISIÓN 1: Reordenamiento del Dashboard
+En la vista principal del panel de administración, ajusta el orden de renderizado estrictamente así:
+
+Arriba: Las Tarjetas de Estadísticas (Miembros totales, activos, admins).
+
+En medio: El módulo InvitationPasswordAdmin (Control de contraseñas que acabas de hacer).
+
+Abajo: La Lista/Tabla de Usuarios Registrados.
+
+MISIÓN 2: Buscador y Paginación para la Lista de Usuarios
+Modifica el componente de la Lista/Tabla de Usuarios (ej. MembersTable o dentro de AdminClient.tsx) para incluir:
+
+Barra de Búsqueda Frontend: Un input de texto arriba de la tabla que filtre en tiempo real a los usuarios por Nombre (fullName) o Correo (email).
+
+Paginación Frontend: Muestra un máximo de 10 usuarios por página. Agrega botones simples de "Anterior" y "Siguiente", y un texto que diga "Página X de Y".
+(Nota: Como el máximo de nuestra comunidad es 250, manejar este filtro y paginación del lado del cliente en React es perfectamente eficiente, no necesitas cambiar el endpoint del backend).
+
+MISIÓN 3: Sincronización del Codex (Post-Implementación)
+Actualiza el archivo 02_SYSTEM_CODEX_REGISTRY.md para documentar que el componente de la lista de usuarios ahora incluye Pagination y SearchFilter en el estado del cliente.
+
+Procede a editar los archivos correspondientes. Entrega tu Informe de Operación al terminar.3. **`03_CONTRATOS_API_Y_LOGICA.md` (Contratos de API):** Define estrictamente los payloads requeridos, respuestas JSON y la lógica de negocio de cada endpoint PHP. No puedes alterar los nombres de las propiedades JSON aquí definidas.
 4. **`04_PROTOCOLOS_DE_VUELO.md` (Checklists de Calidad):** Contiene los pasos de pre-validación y post-validación. Exige que entregues código limpio, sin "dead code" y que te asegures de que la fundación del proyecto (.env, .htaccess, conexion.php) esté intacta antes de programar.
 
 ## 🏆 LA REGLA DE ORO

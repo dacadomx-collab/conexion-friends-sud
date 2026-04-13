@@ -14,6 +14,8 @@ import {
   Users,
   UserCheck,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -29,12 +31,13 @@ import { InvitationPasswordAdmin } from "@/components/InvitationPasswordAdmin"
 
 // ---------------------------------------------------------------------------
 const CFS_SESSION_KEY = "cfs_session"
+const PAGE_SIZE       = 10   // Máximo de usuarios por página
 
 interface SessionData {
-  id:      number
+  id:       number
   fullName: string
-  email:   string
-  role?:   string
+  email:    string
+  role?:    string
 }
 
 interface AdminUser {
@@ -162,8 +165,27 @@ export function AdminClient() {
     )
   }, [users, query])
 
+  // ── Paginación ─────────────────────────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Resetear a página 1 cada vez que cambia la búsqueda
+  useEffect(() => { setCurrentPage(1) }, [query])
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    [filtered.length],
+  )
+
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filtered.slice(start, start + PAGE_SIZE)
+  }, [filtered, currentPage])
+
   // ── Accordion: fila expandida actualmente ─────────────────────────────────
   const [openId, setOpenId] = useState<number | null>(null)
+
+  // Cerrar el accordion abierto si cambia de página (evita desorientación)
+  useEffect(() => { setOpenId(null) }, [currentPage])
 
   // ── Guardar ────────────────────────────────────────────────────────────────
   async function handleSave(targetUserId: number) {
@@ -243,7 +265,9 @@ export function AdminClient() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
 
-        {/* ── KPI Cards ── */}
+        {/* ══════════════════════════════════════════════════════════════════
+            BLOQUE 1 — KPI Cards (siempre arriba)
+        ══════════════════════════════════════════════════════════════════ */}
         {!loadingList && !loadError && (
           <div className="grid grid-cols-3 gap-3">
             <Card className="border border-border/60 shadow-sm">
@@ -269,6 +293,23 @@ export function AdminClient() {
             </Card>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            BLOQUE 2 — Contraseña de Invitación Master (en medio)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="border-t border-border/60 pt-2" />
+        <InvitationPasswordAdmin adminId={session.id} />
+
+        {/* ══════════════════════════════════════════════════════════════════
+            BLOQUE 3 — Lista de Usuarios Registrados (abajo)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="border-t border-border/60 pt-2" />
+
+        {/* Cabecera de la sección */}
+        <div className="flex items-center gap-2">
+          <Users className="h-5 w-5 text-primary shrink-0" />
+          <h2 className="font-bold text-foreground text-base">Usuarios Registrados</h2>
+        </div>
 
         {/* ── Buscador ── */}
         <div className="relative">
@@ -297,177 +338,200 @@ export function AdminClient() {
             No se encontraron usuarios{query ? ` para "${query}"` : ""}.
           </p>
         ) : (
+          <>
+            {/* ── Lista colapsable — solo la página actual ── */}
+            <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
+              {paginated.map((user) => {
+                const draft   = drafts[user.id]
+                if (!draft) return null
 
-          // ── Lista colapsable ──
-          <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
-            {filtered.map((user) => {
-              const draft   = drafts[user.id]
-              if (!draft) return null
+                const isOpen  = openId === user.id
+                const isDirty =
+                  draft.role          !== user.role          ||
+                  draft.status        !== user.status        ||
+                  draft.groupJoinDate !== user.groupJoinDate
 
-              const isOpen  = openId === user.id
-              const isDirty =
-                draft.role          !== user.role          ||
-                draft.status        !== user.status        ||
-                draft.groupJoinDate !== user.groupJoinDate
-
-              return (
-                <Collapsible
-                  key={user.id}
-                  open={isOpen}
-                  onOpenChange={(open) => setOpenId(open ? user.id : null)}
-                >
-                  {/* ── Fila compacta (trigger) ── */}
-                  <CollapsibleTrigger asChild>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left bg-background hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                      aria-label={`Editar ${user.fullName}`}
-                    >
-                      {/* Status dot */}
-                      <span
-                        className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[user.status] ?? "bg-muted-foreground"}`}
-                        aria-hidden="true"
-                      />
-
-                      {/* ID */}
-                      <span className="text-xs text-muted-foreground w-8 shrink-0 tabular-nums">
-                        #{user.id}
-                      </span>
-
-                      {/* Nombre + email */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate leading-tight">
-                          {user.fullName}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {user.email}
-                        </p>
-                      </div>
-
-                      {/* Role badge — solo en sm+ */}
-                      <Badge
-                        variant="outline"
-                        className={`hidden sm:inline-flex text-xs shrink-0 border ${STATUS_BADGE[user.status] ?? STATUS_BADGE.inactive}`}
+                return (
+                  <Collapsible
+                    key={user.id}
+                    open={isOpen}
+                    onOpenChange={(open) => setOpenId(open ? user.id : null)}
+                  >
+                    {/* ── Fila compacta (trigger) ── */}
+                    <CollapsibleTrigger asChild>
+                      <button
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-background hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                        aria-label={`Editar ${user.fullName}`}
                       >
-                        {STATUS_LABELS[user.status] ?? user.status}
-                      </Badge>
-
-                      {/* Indicador de cambios pendientes */}
-                      {isDirty && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-label="Cambios sin guardar" />
-                      )}
-
-                      {/* Chevron */}
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                  </CollapsibleTrigger>
-
-                  {/* ── Panel de edición expandido ── */}
-                  <CollapsibleContent>
-                    <div className="px-4 pb-4 pt-3 bg-secondary/20 border-t border-border/40 space-y-3">
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                        {/* Rol */}
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-muted-foreground">Rol</label>
-                          <select
-                            value={draft.role}
-                            onChange={(e) => patchDraft(user.id, { role: e.target.value, error: null, saved: false })}
-                            disabled={draft.saving || session.id === user.id}
-                            className={SELECT_CLS}
-                          >
-                            {Object.entries(ROLE_LABELS).map(([val, label]) => (
-                              <option key={val} value={val}>{label}</option>
-                            ))}
-                          </select>
-                          {session.id === user.id && (
-                            <p className="text-xs text-muted-foreground">No puedes cambiar tu propio rol.</p>
-                          )}
-                        </div>
-
-                        {/* Estatus */}
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-muted-foreground">Estatus</label>
-                          <select
-                            value={draft.status}
-                            onChange={(e) => patchDraft(user.id, { status: e.target.value, error: null, saved: false })}
-                            disabled={draft.saving}
-                            className={SELECT_CLS}
-                          >
-                            {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                              <option key={val} value={val}>{label}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                      </div>
-
-                      {/* Fecha de ingreso */}
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
-                          Fecha de ingreso al grupo
-                        </label>
-                        <Input
-                          type="date"
-                          value={draft.groupJoinDate}
-                          onChange={(e) => patchDraft(user.id, { groupJoinDate: e.target.value, error: null, saved: false })}
-                          disabled={draft.saving}
+                        {/* Status dot */}
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[user.status] ?? "bg-muted-foreground"}`}
+                          aria-hidden="true"
                         />
-                      </div>
 
-                      {/* Feedback */}
-                      {draft.error && (
-                        <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
-                          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                          {draft.error}
-                        </div>
-                      )}
-                      {draft.saved && (
-                        <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                          Cambios guardados correctamente.
-                        </div>
-                      )}
+                        {/* ID */}
+                        <span className="text-xs text-muted-foreground w-8 shrink-0 tabular-nums">
+                          #{user.id}
+                        </span>
 
-                      {/* Botón guardar */}
-                      <Button
-                        size="sm"
-                        className="w-full font-semibold"
-                        disabled={draft.saving || !isDirty}
-                        onClick={() => handleSave(user.id)}
-                      >
-                        {draft.saving ? (
-                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando…</>
-                        ) : (
-                          <><Save className="h-4 w-4 mr-2" />{isDirty ? "Guardar Cambios" : "Sin cambios"}</>
+                        {/* Nombre + email */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate leading-tight">
+                            {user.fullName}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user.email}
+                          </p>
+                        </div>
+
+                        {/* Status badge — solo en sm+ */}
+                        <Badge
+                          variant="outline"
+                          className={`hidden sm:inline-flex text-xs shrink-0 border ${STATUS_BADGE[user.status] ?? STATUS_BADGE.inactive}`}
+                        >
+                          {STATUS_LABELS[user.status] ?? user.status}
+                        </Badge>
+
+                        {/* Indicador de cambios pendientes */}
+                        {isDirty && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-label="Cambios sin guardar" />
                         )}
-                      </Button>
 
-                    </div>
-                  </CollapsibleContent>
+                        {/* Chevron */}
+                        <ChevronDown
+                          className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    </CollapsibleTrigger>
 
-                </Collapsible>
-              )
-            })}
-          </div>
+                    {/* ── Panel de edición expandido ── */}
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-3 bg-secondary/20 border-t border-border/40 space-y-3">
 
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                          {/* Rol */}
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Rol</label>
+                            <select
+                              value={draft.role}
+                              onChange={(e) => patchDraft(user.id, { role: e.target.value, error: null, saved: false })}
+                              disabled={draft.saving || session.id === user.id}
+                              className={SELECT_CLS}
+                            >
+                              {Object.entries(ROLE_LABELS).map(([val, label]) => (
+                                <option key={val} value={val}>{label}</option>
+                              ))}
+                            </select>
+                            {session.id === user.id && (
+                              <p className="text-xs text-muted-foreground">No puedes cambiar tu propio rol.</p>
+                            )}
+                          </div>
+
+                          {/* Estatus */}
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Estatus</label>
+                            <select
+                              value={draft.status}
+                              onChange={(e) => patchDraft(user.id, { status: e.target.value, error: null, saved: false })}
+                              disabled={draft.saving}
+                              className={SELECT_CLS}
+                            >
+                              {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                                <option key={val} value={val}>{label}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                        </div>
+
+                        {/* Fecha de ingreso */}
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">
+                            Fecha de ingreso al grupo
+                          </label>
+                          <Input
+                            type="date"
+                            value={draft.groupJoinDate}
+                            onChange={(e) => patchDraft(user.id, { groupJoinDate: e.target.value, error: null, saved: false })}
+                            disabled={draft.saving}
+                          />
+                        </div>
+
+                        {/* Feedback */}
+                        {draft.error && (
+                          <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+                            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            {draft.error}
+                          </div>
+                        )}
+                        {draft.saved && (
+                          <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            Cambios guardados correctamente.
+                          </div>
+                        )}
+
+                        {/* Botón guardar */}
+                        <Button
+                          size="sm"
+                          className="w-full font-semibold"
+                          disabled={draft.saving || !isDirty}
+                          onClick={() => handleSave(user.id)}
+                        >
+                          {draft.saving ? (
+                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando…</>
+                          ) : (
+                            <><Save className="h-4 w-4 mr-2" />{isDirty ? "Guardar Cambios" : "Sin cambios"}</>
+                          )}
+                        </Button>
+
+                      </div>
+                    </CollapsibleContent>
+
+                  </Collapsible>
+                )
+              })}
+            </div>
+
+            {/* ── Barra de paginación ── */}
+            <div className="flex items-center justify-between px-1 pb-2">
+              {/* Conteo contextual */}
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {query
+                  ? `${filtered.length} resultado${filtered.length !== 1 ? "s" : ""} · `
+                  : ""}
+                Página {currentPage} de {totalPages}
+              </p>
+
+              {/* Controles */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  aria-label="Página siguiente"
+                >
+                  Siguiente
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
-
-        {/* Conteo de resultados */}
-        {!loadingList && !loadError && filtered.length > 0 && (
-          <p className="text-xs text-center text-muted-foreground pb-2">
-            {filtered.length} usuario{filtered.length !== 1 ? "s" : ""}
-            {query ? ` coinciden con "${query}"` : " en total"}
-          </p>
-        )}
-
-        {/* ── Divisor ── */}
-        <div className="border-t border-border/60 pt-2" />
-
-        {/* ── Sección: Contraseña de Invitación Master ── */}
-        <InvitationPasswordAdmin adminId={session.id} />
 
       </main>
     </div>

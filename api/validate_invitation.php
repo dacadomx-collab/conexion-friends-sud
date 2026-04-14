@@ -53,7 +53,7 @@ try {
 
     // ── 1. Consultar registro de seguridad para esta IP ───────────────────────
     $checkStmt = $db->prepare(
-        "SELECT id, attempts, blocked_until
+        "SELECT ip_address, attempts, blocked_until
          FROM   gatekeeper_security
          WHERE  ip_address = :ip
          LIMIT  1"
@@ -112,13 +112,13 @@ try {
             // Bloquear la IP por 3 horas
             $upsertStmt = $db->prepare(
                 "INSERT INTO gatekeeper_security
-                     (ip_address, attempts, blocked_until, last_attempt_at)
+                     (ip_address, attempts, blocked_until, last_attempt)
                  VALUES
                      (:ip, :atts, DATE_ADD(NOW(), INTERVAL 3 HOUR), NOW())
                  ON DUPLICATE KEY UPDATE
                      attempts        = :atts_u,
                      blocked_until   = DATE_ADD(NOW(), INTERVAL 3 HOUR),
-                     last_attempt_at = NOW()"
+                     last_attempt = NOW()"
             );
             $upsertStmt->execute([
                 ':ip'     => $ip,
@@ -138,13 +138,13 @@ try {
             // Registrar el intento sin bloquear
             $upsertStmt = $db->prepare(
                 "INSERT INTO gatekeeper_security
-                     (ip_address, attempts, blocked_until, last_attempt_at)
+                     (ip_address, attempts, blocked_until, last_attempt)
                  VALUES
                      (:ip, :atts, NULL, NOW())
                  ON DUPLICATE KEY UPDATE
                      attempts        = :atts_u,
                      blocked_until   = NULL,
-                     last_attempt_at = NOW()"
+                     last_attempt = NOW()"
             );
             $upsertStmt->execute([
                 ':ip'     => $ip,
@@ -177,13 +177,13 @@ try {
     // ── 5. Contraseña correcta — limpiar registro de seguridad ───────────────
     $resetStmt = $db->prepare(
         "INSERT INTO gatekeeper_security
-             (ip_address, attempts, blocked_until, last_attempt_at)
+             (ip_address, attempts, blocked_until, last_attempt)
          VALUES
              (:ip, 0, NULL, NOW())
          ON DUPLICATE KEY UPDATE
              attempts        = 0,
              blocked_until   = NULL,
-             last_attempt_at = NOW()"
+             last_attempt = NOW()"
     );
     $resetStmt->execute([':ip' => $ip]);
 

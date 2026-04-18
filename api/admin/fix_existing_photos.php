@@ -22,7 +22,7 @@
 declare(strict_types=1);
 
 // ── Cambia este valor antes de subir al servidor ──────────────────────────────
-const MAINT_TOKEN  = 'CAMBIA_ESTE_TOKEN_ANTES_DE_USAR';
+const MAINT_TOKEN  = 'TokensitoFriends2026';
 
 const MAINT_MAX_DIM   = 1080;
 const MAINT_JPEG_QUAL = 80;

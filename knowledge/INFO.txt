@@ -41,3 +41,30 @@ http://localhost:3001/codigo-de-conducta
 http://localhost:3001/terminos
 
 
+******************************************
+***************** PARA BORRAR A USER de todos ********************
+******************************************
+
+SELECT photo_url 
+FROM profile_photos 
+WHERE user_id = [ID_DEL_USUARIO];
+
+-- 1. Borramos sus links de redes sociales
+DELETE FROM social_networks 
+WHERE user_id = [ID_DEL_USUARIO];
+
+-- 2. Borramos los registros de sus fotos del directorio
+DELETE FROM profile_photos 
+WHERE user_id = [ID_DEL_USUARIO];
+
+-- 3. Borramos los datos de su perfil (barrio, estaca, bio)
+DELETE FROM profiles 
+WHERE user_id = [ID_DEL_USUARIO];
+
+-- 4. Borramos sus aportaciones de escrituras (si las tiene)
+DELETE FROM daily_scriptures 
+WHERE user_id = [ID_DEL_USUARIO];
+
+-- 5. Finalmente, borramos su cuenta de acceso y datos inmutables
+DELETE FROM users 
+WHERE id = [ID_DEL_USUARIO];

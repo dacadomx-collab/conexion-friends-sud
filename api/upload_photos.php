@@ -275,10 +275,17 @@ try {
 
     $pdo->commit();
 
-    // Commit exitoso → eliminar archivos físicos anteriores del disco
+    // Commit exitoso → eliminar archivos físicos anteriores del disco.
+    // Try/catch aislado: si unlink falla (ej. permisos en producción) el custom
+    // error_handler lanza RuntimeException — la capturamos aquí para que no
+    // contamine el catch externo ni borre las fotos nuevas recién guardadas.
     foreach ($oldPhotoPaths as $oldPath) {
-        if (file_exists($oldPath)) {
-            @unlink($oldPath);
+        try {
+            if (file_exists($oldPath)) {
+                unlink($oldPath);
+            }
+        } catch (\Throwable $ignored) {
+            // No es crítico: el commit ya fue exitoso y el registro en BD es correcto.
         }
     }
 

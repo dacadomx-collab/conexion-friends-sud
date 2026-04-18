@@ -166,6 +166,16 @@ try {
     $savedUrls  = [];
     $savedPaths = [];   // para rollback físico si la BD falla
 
+    // Capturar rutas físicas de fotos anteriores ANTES de la transacción.
+    // Se borran del disco solo si el commit tiene éxito; así el rollback
+    // de BD nunca deja el servidor sin archivos que aún apuntan en BD.
+    $stmtOld = $pdo->prepare('SELECT photo_url FROM profile_photos WHERE user_id = :userId');
+    $stmtOld->execute([':userId' => $userId]);
+    $oldPhotoPaths = [];
+    foreach ($stmtOld->fetchAll(\PDO::FETCH_COLUMN) as $oldUrl) {
+        $oldPhotoPaths[] = __DIR__ . '/..' . $oldUrl;
+    }
+
     $pdo->beginTransaction();
 
     $stmtDel = $pdo->prepare('DELETE FROM profile_photos WHERE user_id = :userId');
@@ -195,12 +205,12 @@ try {
         if (in_array($origExt, ['jpg', 'jpeg'], true) && EXIF_AVAILABLE) {
             $exif = @exif_read_data($file['tmp_name']);
             if ($exif !== false && isset($exif['Orientation'])) {
-                $degrees = match ((int) $exif['Orientation']) {
-                    3 => 180,
-                    6 => -90,
-                    8 =>  90,
-                    default => 0,
-                };
+                switch ((int) $exif['Orientation']) {
+                    case 3:  $degrees = 180; break;
+                    case 6:  $degrees = -90; break;
+                    case 8:  $degrees =  90; break;
+                    default: $degrees =   0; break;
+                }
                 if ($degrees !== 0) {
                     $rotated = imagerotate($srcImg, $degrees, 0);
                     if ($rotated !== false) {
@@ -264,6 +274,13 @@ try {
     }
 
     $pdo->commit();
+
+    // Commit exitoso → eliminar archivos físicos anteriores del disco
+    foreach ($oldPhotoPaths as $oldPath) {
+        if (file_exists($oldPath)) {
+            @unlink($oldPath);
+        }
+    }
 
     echo json_encode([
         'status'  => 'success',

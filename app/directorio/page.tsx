@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Suspense } from "react"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
 import { ProfileNavActions } from "@/components/ProfileNavActions"
@@ -37,7 +38,9 @@ export default function DirectorioPage() {
           </p>
         </div>
 
-        <DirectoryClient />
+        <Suspense fallback={null}>
+          <DirectoryClient />
+        </Suspense>
 
       </main>
     </div>

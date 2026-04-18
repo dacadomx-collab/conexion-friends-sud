@@ -199,7 +199,7 @@ export function DashboardClient() {
               <p className="mt-1.5 text-xs text-muted-foreground">
                 Compartida por{" "}
                 <Link
-                  href={`/perfil?userId=${scripture.userId}`}
+                  href={`/directorio?userId=${scripture.userId}`}
                   className="text-primary hover:underline underline-offset-4 font-medium"
                 >
                   {scripture.fullName}

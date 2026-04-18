@@ -125,7 +125,7 @@ try {
             }
 
             // Confirmar que el path resuelto sigue dentro del directorio permitido
-            if (!str_starts_with($serverPath, $uploadsBase)) {
+            if (strpos($serverPath, $uploadsBase) !== 0) {
                 $errors[] = [
                     'photo_id'  => $photoId,
                     'user_id'   => $userId,
@@ -149,12 +149,12 @@ try {
                 continue;
             }
 
-            $degrees = match ((int) $exif['Orientation']) {
-                3 => 180,
-                6 => -90,   // 90° sentido horario del dispositivo
-                8 =>  90,   // 90° sentido antihorario del dispositivo
-                default => 0,
-            };
+            switch ((int) $exif['Orientation']) {
+                case 3:  $degrees = 180; break;
+                case 6:  $degrees = -90; break;  // 90° sentido horario del dispositivo
+                case 8:  $degrees =  90; break;  // 90° sentido antihorario del dispositivo
+                default: $degrees =   0; break;
+            }
 
             if ($degrees === 0) {
                 $skippedCount++;   // Orientación normal (1) — no hay nada que hacer

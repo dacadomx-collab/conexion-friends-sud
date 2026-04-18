@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   Search,
   Sparkles,
@@ -291,7 +292,11 @@ function MemberSheet({
                   <SocialPill href={`https://tiktok.com/@${member.socials.tiktok}`} icon={<span className="text-[10px] font-black">TT</span>} label="TikTok" />
                 )}
                 {member.socials.website && (
-                  <SocialPill href={member.socials.website} icon={<Globe className="h-4 w-4" />} label="Sitio web" />
+                  <SocialPill
+                    href={member.socials.website.startsWith("http") ? member.socials.website : `https://${member.socials.website}`}
+                    icon={<Globe className="h-4 w-4" />}
+                    label="Sitio web"
+                  />
                 )}
               </div>
             </div>
@@ -386,6 +391,20 @@ export function DirectoryClient() {
   }, [members, genderFilter, ageMin, ageMax, country, query])
 
   const [selected, setSelected] = useState<Member | null>(null)
+
+  // ── Auto-abrir perfil desde URL (?userId=X) ───────────────────────────────
+  const searchParams  = useSearchParams()
+  const urlUserId     = searchParams ? Number(searchParams.get("userId")) : NaN
+  const autoOpened    = useRef(false)
+
+  useEffect(() => {
+    if (autoOpened.current || !urlUserId || isNaN(urlUserId) || members.length === 0) return
+    const target = members.find((m) => m.id === urlUserId)
+    if (target) {
+      setSelected(target)
+      autoOpened.current = true
+    }
+  }, [urlUserId, members])
 
   // ── Skeleton de carga ─────────────────────────────────────────────────────
   if (isLoading || !isMounted) {

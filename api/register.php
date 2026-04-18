@@ -180,6 +180,40 @@ $db  = new Database();
 $pdo = $db->getConnection();
 
 // -----------------------------------------------------------------------------
+// 8b. VALIDACIÓN DE LISTA BLANCA (whitelist_phones)
+//     El teléfono debe existir en whitelist_phones con is_used = 0.
+//     · No encontrado        → HTTP 403 (número no autorizado)
+//     · is_used = 1          → HTTP 403 (número ya utilizado para otra cuenta)
+//     Esta verificación ocurre antes de la transacción para evitar bloqueos
+//     innecesarios en la tabla users ante teléfonos no autorizados.
+// -----------------------------------------------------------------------------
+$stmtWL = $pdo->prepare(
+    'SELECT is_used FROM whitelist_phones WHERE phone = :phone LIMIT 1'
+);
+$stmtWL->execute([':phone' => $phone]);
+$whitelistEntry = $stmtWL->fetch();
+
+if ($whitelistEntry === false) {
+    http_response_code(403);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Tu número de teléfono no está autorizado para registrarse. Solicita una invitación.',
+        'data'    => [],
+    ]);
+    exit;
+}
+
+if ((int) $whitelistEntry['is_used'] === 1) {
+    http_response_code(403);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Este número de teléfono ya fue utilizado para crear una cuenta.',
+        'data'    => [],
+    ]);
+    exit;
+}
+
+// -----------------------------------------------------------------------------
 // 9. INSERT EN TABLA `users`
 //    Mapeo explícito camelCase (Front) → snake_case (DB) según Codex:
 //
@@ -192,8 +226,8 @@ $pdo = $db->getConnection();
 // -----------------------------------------------------------------------------
 try {
     // -------------------------------------------------------------------------
-    // 9. TRANSACCIÓN ATÓMICA — users + profiles deben crearse juntos.
-    //    Si el INSERT en profiles falla, el usuario no queda creado a medias.
+    // 9. TRANSACCIÓN ATÓMICA — users + profiles + whitelist deben ser atómicos.
+    //    Si cualquier INSERT falla, ningún cambio persiste en la base de datos.
     // -------------------------------------------------------------------------
     $pdo->beginTransaction();
 
@@ -228,6 +262,15 @@ try {
         ':user_id' => $newUserId,
         ':gender'  => $gender,
     ]);
+
+    // 9c. Marcar el número como utilizado en la Lista Blanca.
+    //     is_used = 1 impide que el mismo número cree una segunda cuenta.
+    //     Al estar dentro de la transacción, si algo falla el número
+    //     no queda marcado y puede volver a intentar el registro.
+    $stmtMarkUsed = $pdo->prepare(
+        'UPDATE whitelist_phones SET is_used = 1 WHERE phone = :phone'
+    );
+    $stmtMarkUsed->execute([':phone' => $phone]);
 
     $pdo->commit();
 

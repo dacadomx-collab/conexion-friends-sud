@@ -48,6 +48,11 @@ try {
         throw new \RuntimeException('La extensión GD de PHP no está disponible en el servidor.');
     }
 
+    // ── Verificar extensión EXIF (soft-check) ──────────────────────────────────
+    // Si exif no está habilitada, la corrección de orientación se omite sin error
+    // fatal; el Arquitecto debe activar extension=exif en php.ini para producción.
+    define('EXIF_AVAILABLE', extension_loaded('exif') && function_exists('exif_read_data'));
+
     // ── Validar userId ─────────────────────────────────────────────────────────
     $userId = isset($_POST['userId']) ? (int) $_POST['userId'] : 0;
     if ($userId <= 0) {
@@ -182,6 +187,32 @@ try {
 
         $srcW = (int) $file['width'];
         $srcH = (int) $file['height'];
+
+        // ── Corrección de orientación EXIF (solo JPEG) ────────────────────────
+        // Corrige fotos tomadas en vertical/horizontal que el dispositivo marca
+        // con el tag Orientation en lugar de rotar físicamente los píxeles.
+        $origExt = strtolower((string) pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (in_array($origExt, ['jpg', 'jpeg'], true) && EXIF_AVAILABLE) {
+            $exif = @exif_read_data($file['tmp_name']);
+            if ($exif !== false && isset($exif['Orientation'])) {
+                $degrees = match ((int) $exif['Orientation']) {
+                    3 => 180,
+                    6 => -90,
+                    8 =>  90,
+                    default => 0,
+                };
+                if ($degrees !== 0) {
+                    $rotated = imagerotate($srcImg, $degrees, 0);
+                    if ($rotated !== false) {
+                        imagedestroy($srcImg);
+                        $srcImg = $rotated;
+                        // Recalcular dimensiones: pueden haber cambiado tras ±90°
+                        $srcW = (int) imagesx($srcImg);
+                        $srcH = (int) imagesy($srcImg);
+                    }
+                }
+            }
+        }
 
         // ── Redimensionar si supera MAX_DIMENSION ─────────────────────────────
         if ($srcW > MAX_DIMENSION || $srcH > MAX_DIMENSION) {

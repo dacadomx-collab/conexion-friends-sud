@@ -160,12 +160,12 @@ function MemberSheet({
         <SheetTitle className="sr-only">Perfil de {member.fullName}</SheetTitle>
 
         {/* ── Galería ── */}
-        <div className="relative w-full aspect-[4/3] bg-secondary/40 shrink-0 overflow-hidden">
+        <div className="relative w-full aspect-[4/3] bg-stone-100 dark:bg-stone-800 shrink-0 overflow-hidden">
           {currentSrc ? (
             <img
               src={currentSrc}
               alt={`Foto de ${member.fullName}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -526,14 +526,14 @@ export function DirectoryClient() {
               <button
                 key={member.id}
                 onClick={() => setSelected(member)}
-                className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none transition-all duration-200 cursor-pointer text-left"
+                className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none transition-all duration-200 cursor-pointer text-left bg-stone-100 dark:bg-stone-800"
                 aria-label={`Ver perfil de ${member.fullName}`}
               >
                 {member.photoUrl ? (
                   <img
                     src={member.photoUrl}
                     alt={`Foto de ${member.fullName}`}
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="absolute inset-0 w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/40">

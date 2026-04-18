@@ -45,11 +45,11 @@ export function ProfileCard({
   return (
     <Card className="overflow-hidden bg-card shadow-lg hover:shadow-xl transition-shadow duration-300">
       {/* Photo Carousel */}
-      <div className="relative aspect-[4/3] bg-muted">
+      <div className="relative aspect-[4/3] bg-stone-100 dark:bg-stone-800">
         <img
           src={photos[currentPhoto]}
           alt={`Foto de ${name}`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
         
         {/* Photo Navigation */}

@@ -455,3 +455,41 @@ Tabs de navegación visual entre "Datos Personales" (`/perfil?userId=`) y "Fotos
 | **Endpoint** | `GET /api/get_directory.php` |
 
 Grid responsivo (1→2→3 columnas). Buscador en tiempo real por nombre, barrio o estaca. Sello de confianza: Badge "En el grupo desde [Año]" si `groupJoinDate` existe.
+
+---
+
+## 🛡️ TABLAS DE SEGURIDAD Y REGISTRO (WHITELIST & OTP)
+
+| Concepto | Tabla / Campo (DB) | Frontend (camelCase) | Tipo de Dato |
+| :--- | :--- | :--- | :--- |
+| **Tabla Whitelist** | `whitelist_phones` | - | **Tabla** |
+| Teléfono Permitido | `phone` | `phone` | String (E.164) |
+| Ya se registró | `is_used` | `isUsed` | Bool (0/1) |
+| **Tabla OTP** | `otp_sessions` | - | **Tabla** |
+| Hash del Código | `otp_hash` | - | String |
+| Expiración | `expires_at` | `expiresAt` | Datetime |
+| Intentos fallidos | `attempts` | `attempts` | Int |
+| Código Validado | `is_verified` | `isVerified` | Bool (0/1) |
+
+### Tabla: `whitelist_phones` *(Creada manualmente — Lista Blanca de acceso)*
+- `phone`: VARCHAR(30) UNIQUE — Número en formato E.164 autorizado para registrarse
+- `is_used`: TINYINT(1) DEFAULT 0 — 0 = disponible para registro; 1 = ya utilizado
+
+> **Regla de negocio:** Al completar el registro (`api/register.php`), el campo `is_used` se marca como `1` dentro de la misma transacción PDO. Un número con `is_used = 1` no puede usarse para crear una segunda cuenta (HTTP 403).
+> Números nuevos se cargan masivamente desde CSV vía `api/import_whitelist.php` (solo admins).
+> Eliminaciones se registran en `whitelist_audit_log` vía `api/delete_whitelist_phone.php`.
+
+### Tabla: `otp_sessions` *(Creada manualmente — Sesiones OTP)*
+- `otp_hash`: VARCHAR(255) — Hash bcrypt del código de verificación
+- `expires_at`: DATETIME — Tiempo de expiración del código
+- `attempts`: INT DEFAULT 0 — Intentos fallidos de validación
+- `is_verified`: TINYINT(1) DEFAULT 0 — 0 = pendiente; 1 = código validado
+
+### Tabla: `whitelist_audit_log` *(Migración 06 — ejecutar `database/migracion_06_whitelist_audit_log.sql`)*
+- `id`: INT AUTO_INCREMENT — Clave primaria
+- `admin_id`: INT NOT NULL — FK → `users.id` ON DELETE RESTRICT | Admin que ejecutó la eliminación
+- `phone`: VARCHAR(30) NOT NULL — Número E.164 eliminado de `whitelist_phones`
+- `deleted_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP — Fecha y hora exacta de la eliminación
+
+> **Regla de negocio:** Cada vez que un admin elimina un número de `whitelist_phones` vía `api/delete_whitelist_phone.php`, se inserta una fila en esta tabla dentro de la misma transacción PDO. Si el INSERT de auditoría falla, el DELETE hace Rollback completo.
+> **Script:** `database/migracion_06_whitelist_audit_log.sql`

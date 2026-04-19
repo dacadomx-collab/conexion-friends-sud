@@ -16,6 +16,12 @@ import {
   ChevronRight,
   Sparkles,
   ShieldCheck,
+  EyeOff,
+  Eye,
+  Trash2,
+  X,
+  AlertTriangle,
+  Lock,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -98,6 +104,12 @@ export function DashboardClient() {
   const isAdmin = session?.role === "admin"
   const CARDS   = buildCards(isAdmin)
 
+  const [accountStatus,  setAccountStatus]  = useState<string>("active")
+  const [showHideModal,   setShowHideModal]   = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [privacyLoading,  setPrivacyLoading]  = useState(false)
+  const [privacyError,    setPrivacyError]    = useState<string | null>(null)
+
   // ── Leer sesión de localStorage (client-side only) ────────────────────────
   useEffect(() => {
     const raw = localStorage.getItem(CFS_SESSION_KEY)
@@ -108,6 +120,7 @@ export function DashboardClient() {
     try {
       const data: SessionData = JSON.parse(raw)
       setSession(data)
+      setAccountStatus(data.status ?? "active")
 
       const firstName = data.fullName.split(" ")[0]
       const hour = new Date().getHours()
@@ -135,6 +148,51 @@ export function DashboardClient() {
   function handleLogout() {
     localStorage.removeItem(CFS_SESSION_KEY)
     router.push("/")
+  }
+
+  async function handleToggleVisibility() {
+    if (!session) return
+    setPrivacyLoading(true)
+    setPrivacyError(null)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/account/toggle_visibility.php`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ userId: session.id }),
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message)
+      const newStatus = json.newStatus as string
+      setAccountStatus(newStatus)
+      const updated = { ...session, status: newStatus }
+      localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(updated))
+      setSession(updated)
+      setShowHideModal(false)
+    } catch (err) {
+      setPrivacyError(err instanceof Error ? err.message : "Error desconocido.")
+    } finally {
+      setPrivacyLoading(false)
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!session) return
+    setPrivacyLoading(true)
+    setPrivacyError(null)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/account/delete_account.php`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ userId: session.id }),
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message)
+      localStorage.removeItem(CFS_SESSION_KEY)
+      router.push("/")
+    } catch (err) {
+      setPrivacyError(err instanceof Error ? err.message : "Error desconocido.")
+      setPrivacyLoading(false)
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -260,6 +318,42 @@ export function DashboardClient() {
           </CardContent>
         </Card>
 
+        {/* ── Tarjeta: Privacidad de Cuenta ── */}
+        <Card className="border border-border/60 shadow-sm mb-4">
+          <CardContent className="p-5 flex items-start gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-xl shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+              <Lock className="h-7 w-7" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base font-semibold text-foreground leading-tight mb-0.5">
+                Privacidad de Cuenta
+              </h2>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                Controla tu visibilidad en El Book o elimina tu cuenta permanentemente.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => { setPrivacyError(null); setShowHideModal(true) }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary text-foreground text-xs font-semibold px-3 py-1.5 hover:bg-secondary/80 transition-colors"
+                >
+                  {accountStatus === "active" ? (
+                    <><EyeOff className="h-3.5 w-3.5" /> Ocultar mi cuenta</>
+                  ) : (
+                    <><Eye className="h-3.5 w-3.5" /> Reactivar mi cuenta en El Book</>
+                  )}
+                </button>
+                <button
+                  onClick={() => { setPrivacyError(null); setShowDeleteModal(true) }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 text-destructive bg-destructive/5 text-xs font-semibold px-3 py-1.5 hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Eliminar mi cuenta
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ── Tarjeta: Panel de Administración (solo admins) ── */}
         {isAdmin && (
           <Link href="/admin" className="block">
@@ -355,6 +449,106 @@ export function DashboardClient() {
         </div>
 
       </main>
+
+      {/* ══ Modal: Ocultar / Reactivar cuenta ══ */}
+      {showHideModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-background border border-border shadow-2xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-2">
+                {accountStatus === "active"
+                  ? <EyeOff className="h-5 w-5 text-foreground" />
+                  : <Eye className="h-5 w-5 text-emerald-600" />}
+                <h3 className="font-bold text-foreground text-base">
+                  {accountStatus === "active" ? "Ocultar mi cuenta" : "Reactivar mi cuenta"}
+                </h3>
+              </div>
+              <button onClick={() => setShowHideModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {accountStatus === "active" ? (
+              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                Tu perfil, fotos y redes <strong className="text-foreground">no aparecerán en El Book</strong>, pero podrás seguir compartiendo escrituras y usando la plataforma. Puedes reactivarla cuando quieras.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                Tu perfil <strong className="text-foreground">volverá a aparecer en El Book</strong> y los demás miembros podrán encontrarte nuevamente.
+              </p>
+            )}
+            {privacyError && (
+              <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive mb-4">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                {privacyError}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowHideModal(false)}
+                disabled={privacyLoading}
+                className="flex-1 rounded-lg border border-border bg-secondary text-foreground text-sm font-semibold py-2 hover:bg-secondary/80 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleToggleVisibility}
+                disabled={privacyLoading}
+                className="flex-1 rounded-lg bg-primary text-primary-foreground text-sm font-semibold py-2 hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {privacyLoading
+                  ? "Procesando…"
+                  : accountStatus === "active" ? "Sí, ocultar" : "Sí, reactivar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Modal: Eliminar cuenta ══ */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-background border border-destructive/30 shadow-2xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <h3 className="font-bold text-destructive text-base">Eliminar cuenta</h3>
+              </div>
+              <button onClick={() => setShowDeleteModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 mb-4">
+              <p className="text-sm font-semibold text-destructive mb-1">⚠️ Esta acción no se puede deshacer</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Se borrarán permanentemente <strong className="text-foreground">todas tus fotos, redes sociales, escrituras y datos</strong> del sistema.
+              </p>
+            </div>
+            {privacyError && (
+              <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive mb-4">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                {privacyError}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={privacyLoading}
+                className="flex-1 rounded-lg border border-border bg-secondary text-foreground text-sm font-semibold py-2 hover:bg-secondary/80 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={privacyLoading}
+                className="flex-1 rounded-lg bg-destructive text-white text-sm font-semibold py-2 hover:bg-destructive/90 transition-colors disabled:opacity-50"
+              >
+                {privacyLoading ? "Eliminando…" : "Eliminar para siempre"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

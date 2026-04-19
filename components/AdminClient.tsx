@@ -16,6 +16,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  EyeOff,
+  UserX,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -47,6 +49,14 @@ interface AdminUser {
   role:          string
   status:        string
   groupJoinDate: string
+}
+
+interface DepartureEntry {
+  id:        number
+  userName:  string
+  action:    "hidden" | "deleted"
+  reason:    string | null
+  createdAt: string
 }
 
 interface UserDraft {
@@ -116,6 +126,11 @@ export function AdminClient() {
   const [loadingList, setLoadingList] = useState(true)
   const [loadError,   setLoadError]   = useState<string | null>(null)
 
+  // ── Registro de bajas ──────────────────────────────────────────────────────
+  const [departures,        setDepartures]        = useState<DepartureEntry[]>([])
+  const [loadingDepartures, setLoadingDepartures] = useState(true)
+  const [departuresError,   setDeparturesError]   = useState<string | null>(null)
+
   useEffect(() => {
     if (!session) return
     setLoadingList(true)
@@ -129,12 +144,37 @@ export function AdminClient() {
       .finally(() => setLoadingList(false))
   }, [session])
 
+  useEffect(() => {
+    if (!session) return
+    setLoadingDepartures(true)
+    fetch(`${API_BASE_URL}/api/admin/get_departures.php?requesterId=${session.id}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.status === "success") setDepartures(json.data ?? [])
+        else setDeparturesError(json.message ?? "Error al cargar el registro de bajas.")
+      })
+      .catch(() => setDeparturesError("Error de red al cargar el registro de bajas."))
+      .finally(() => setLoadingDepartures(false))
+  }, [session])
+
   // ── KPIs ───────────────────────────────────────────────────────────────────
+  // hidden  = usuarios con status='inactive' (ya en memoria desde get_users_admin)
+  // deleted = entradas action='deleted' en departures (ya en memoria desde get_departures)
   const kpis = useMemo(() => ({
     total:   users.length,
     active:  users.filter((u) => u.status === "active").length,
     admins:  users.filter((u) => u.role === "admin").length,
-  }), [users])
+    hidden:  users.filter((u) => u.status === "inactive").length,
+    deleted: departures.filter((d) => d.action === "deleted").length,
+  }), [users, departures])
+
+  // ── Panel de Admins (toggle) ───────────────────────────────────────────────
+  const [showAdmins, setShowAdmins] = useState(false)
+
+  const adminUsers = useMemo(
+    () => users.filter((u) => u.role === "admin"),
+    [users],
+  )
 
   // ── Drafts ─────────────────────────────────────────────────────────────────
   const [drafts, setDrafts] = useState<Record<number, UserDraft>>({})
@@ -186,6 +226,11 @@ export function AdminClient() {
 
   // Cerrar el accordion abierto si cambia de página (evita desorientación)
   useEffect(() => { setOpenId(null) }, [currentPage])
+
+  // ── Scroll suave a sección de Bajas ───────────────────────────────────────
+  function scrollToBajas() {
+    document.getElementById("seccion-bajas")?.scrollIntoView({ behavior: "smooth" })
+  }
 
   // ── Guardar ────────────────────────────────────────────────────────────────
   async function handleSave(targetUserId: number) {
@@ -269,29 +314,119 @@ export function AdminClient() {
             BLOQUE 1 — KPI Cards (siempre arriba)
         ══════════════════════════════════════════════════════════════════ */}
         {!loadingList && !loadError && (
-          <div className="grid grid-cols-3 gap-3">
-            <Card className="border border-border/60 shadow-sm">
-              <CardContent className="px-4 py-3 flex flex-col items-center gap-1">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <p className="text-2xl font-bold text-foreground leading-none">{kpis.total}</p>
-                <p className="text-xs text-muted-foreground text-center">Miembros</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-emerald-200 dark:border-emerald-800 shadow-sm">
-              <CardContent className="px-4 py-3 flex flex-col items-center gap-1">
-                <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-none">{kpis.active}</p>
-                <p className="text-xs text-muted-foreground text-center">Activos</p>
-              </CardContent>
-            </Card>
-            <Card className="border border-primary/20 shadow-sm">
-              <CardContent className="px-4 py-3 flex flex-col items-center gap-1">
-                <Shield className="h-4 w-4 text-primary" />
-                <p className="text-2xl font-bold text-primary leading-none">{kpis.admins}</p>
-                <p className="text-xs text-muted-foreground text-center">Admins</p>
-              </CardContent>
-            </Card>
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+
+              {/* Total miembros */}
+              <Card className="border border-border/60 shadow-sm">
+                <CardContent className="px-3 py-3 flex flex-col items-center gap-1">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-2xl font-bold text-foreground leading-none">{kpis.total}</p>
+                  <p className="text-xs text-muted-foreground text-center">Miembros</p>
+                </CardContent>
+              </Card>
+
+              {/* Activos */}
+              <Card className="border border-emerald-200 dark:border-emerald-800 shadow-sm">
+                <CardContent className="px-3 py-3 flex flex-col items-center gap-1">
+                  <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400 leading-none">{kpis.active}</p>
+                  <p className="text-xs text-muted-foreground text-center">Activos</p>
+                </CardContent>
+              </Card>
+
+              {/* Admins — clickeable → despliega panel de administradores */}
+              <button
+                type="button"
+                onClick={() => setShowAdmins((prev) => !prev)}
+                className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                aria-expanded={showAdmins}
+                aria-label="Ver administradores"
+              >
+                <Card className={[
+                  "border shadow-sm hover:shadow-md transition-all cursor-pointer h-full",
+                  showAdmins
+                    ? "border-primary/60 bg-primary/5 dark:bg-primary/10"
+                    : "border-primary/20 hover:border-primary/50",
+                ].join(" ")}>
+                  <CardContent className="px-3 py-3 flex flex-col items-center gap-1">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <p className="text-2xl font-bold text-primary leading-none">{kpis.admins}</p>
+                    <p className="text-xs text-muted-foreground text-center">Admins</p>
+                  </CardContent>
+                </Card>
+              </button>
+
+              {/* Cuentas ocultas — clickeable → scroll a Bajas */}
+              <button
+                type="button"
+                onClick={scrollToBajas}
+                className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                aria-label="Ver cuentas ocultas"
+              >
+                <Card className="border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-slate-400 dark:hover:border-slate-500 transition-all cursor-pointer h-full">
+                  <CardContent className="px-3 py-3 flex flex-col items-center gap-1">
+                    <EyeOff className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                    <p className="text-2xl font-bold text-slate-600 dark:text-slate-300 leading-none">{kpis.hidden}</p>
+                    <p className="text-xs text-muted-foreground text-center">Ocultos</p>
+                  </CardContent>
+                </Card>
+              </button>
+
+              {/* Bajas definitivas — clickeable → scroll a Bajas */}
+              <button
+                type="button"
+                onClick={scrollToBajas}
+                className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                aria-label="Ver bajas definitivas"
+              >
+                <Card className="border border-destructive/20 shadow-sm hover:shadow-md hover:border-destructive/50 transition-all cursor-pointer h-full">
+                  <CardContent className="px-3 py-3 flex flex-col items-center gap-1">
+                    <UserX className="h-4 w-4 text-destructive/70" />
+                    <p className="text-2xl font-bold text-destructive leading-none">{kpis.deleted}</p>
+                    <p className="text-xs text-muted-foreground text-center">Eliminados</p>
+                  </CardContent>
+                </Card>
+              </button>
+
+            </div>
+
+            {/* ── Panel desplegable: lista de administradores ── */}
+            <Collapsible open={showAdmins}>
+              <CollapsibleContent>
+                <div className="rounded-xl border border-primary/20 bg-stone-50 dark:bg-stone-900 px-4 py-4 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary/70 mb-3 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" />
+                    Administradores activos
+                  </p>
+                  {adminUsers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">Sin administradores registrados.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {adminUsers.map((admin) => (
+                        <div
+                          key={admin.id}
+                          className="flex items-center gap-3 rounded-lg bg-background border border-border/60 px-3 py-2.5 shadow-sm"
+                        >
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary shrink-0 text-xs font-bold select-none">
+                            {admin.fullName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate leading-tight">
+                              {admin.fullName}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {admin.email}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
@@ -531,6 +666,81 @@ export function AdminClient() {
               </div>
             </div>
           </>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            BLOQUE 4 — Bajas / Ocultos (registro de auditoría)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div id="seccion-bajas" className="border-t border-border/60 pt-2 scroll-mt-20" />
+
+        <div className="flex items-center gap-2">
+          <EyeOff className="h-5 w-5 text-primary shrink-0" />
+          <h2 className="font-bold text-foreground text-base">Bajas / Ocultos</h2>
+          {!loadingDepartures && !departuresError && (
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+              {departures.length} registro{departures.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+
+        {loadingDepartures ? (
+          <div className="flex justify-center items-center gap-2 py-10 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Cargando registros…
+          </div>
+        ) : departuresError ? (
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {departuresError}
+          </div>
+        ) : departures.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-10">
+            Sin registros de bajas o cuentas ocultas.
+          </p>
+        ) : (
+          <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
+            {departures.map((entry) => (
+              <div key={entry.id} className="flex items-center gap-3 px-4 py-3 bg-background">
+                <div className={[
+                  "flex items-center justify-center w-8 h-8 rounded-lg shrink-0",
+                  entry.action === "hidden"
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                    : "bg-destructive/10 text-destructive",
+                ].join(" ")}>
+                  {entry.action === "hidden"
+                    ? <EyeOff className="h-4 w-4" />
+                    : <UserX className="h-4 w-4" />}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate leading-tight">
+                    {entry.userName}
+                  </p>
+                  {entry.reason && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {entry.reason}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className={[
+                    "inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border",
+                    entry.action === "hidden"
+                      ? "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                      : "bg-destructive/10 text-destructive border-destructive/30",
+                  ].join(" ")}>
+                    {entry.action === "hidden" ? "Oculto" : "Eliminado"}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {new Date(entry.createdAt).toLocaleDateString("es-MX", {
+                      day: "2-digit", month: "short", year: "numeric",
+                    })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
       </main>

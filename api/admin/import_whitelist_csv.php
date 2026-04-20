@@ -6,21 +6,24 @@
 // Campos  : requesterId (int, POST), csv (archivo .csv)
 //
 // Columnas esperadas del CSV (detección case-insensitive, cualquier orden):
-//   - Teléfono   : columna con "tel", "phone", "celular" o "numero" en el header
-//   - Referencia : columna con "nombre" o "referencia" en el header
-//   - Fecha      : columna con "fecha" o "ingreso" en el header → profiles.group_join_date
-//   - Insignia   : columna con "insignia" o "badge" → SOLO INFORMATIVA, no se almacena
+//   - Teléfono   : header con "tel", "phone", "celular" o "numero"
+//   - Referencia : header con "nombre" o "referencia"
+//   - Fecha      : header con "fecha" o "ingreso" → profiles.group_join_date
+//   - Insignia   : header con "insignia" o "badge"  → INFORMATIVO, no se almacena
 //
 // Por cada fila:
-//   1. Sanitizar teléfono a solo dígitos.
-//   2. INSERT INTO whitelist_phones (phone, reference_name, added_by) ON DUPLICATE KEY UPDATE.
-//   3. Si el teléfono ya pertenece a un usuario registrado Y viene fecha → UPDATE profiles.group_join_date.
+//   1. Sanitizar teléfono a solo dígitos (preg_replace).
+//   2. INSERT INTO whitelist_phones ON DUPLICATE KEY UPDATE.
+//   3. Si el teléfono pertenece a un usuario registrado Y viene fecha →
+//      UPDATE profiles.group_join_date.
 //
-// Respuesta: { status, summary: { inserted, updated_profile, skipped, errors }, rows: RowResult[] }
+// Respuesta: { status, summary: { inserted, updated_profile, skipped, errors },
+//              rows: RowResult[] }
 // =============================================================================
 
 declare(strict_types=1);
 
+// Convierte errores no-fatales en ErrorException para que el catch los capture
 set_error_handler(static function (int $errno, string $errstr, string $errfile, int $errline): bool {
     throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
 });
@@ -29,13 +32,24 @@ require_once __DIR__ . '/../conexion.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+// ── Helpers compatibles PHP 7.4 ──────────────────────────────────────────────
+
+/**
+ * Reemplaza str_contains() de PHP 8.0.
+ * Devuelve true si $haystack contiene $needle.
+ */
+function cfs_str_contains(string $haystack, string $needle): bool {
+    return $needle === '' || strpos($haystack, $needle) !== false;
+}
+
+// ── Validaciones previas (fuera del try → salidas limpias garantizadas) ───────
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['status' => 'error', 'message' => 'Método no permitido.']);
     exit;
 }
 
-// ── Validar requesterId ───────────────────────────────────────────────────────
 $requesterId = isset($_POST['requesterId']) ? (int) $_POST['requesterId'] : 0;
 if ($requesterId <= 0) {
     http_response_code(400);
@@ -43,18 +57,16 @@ if ($requesterId <= 0) {
     exit;
 }
 
-// ── Validar archivo ───────────────────────────────────────────────────────────
-if (!isset($_FILES['csv']) || $_FILES['csv']['error'] !== UPLOAD_ERR_OK) {
-    $uploadErr = $_FILES['csv']['error'] ?? -1;
+if (!isset($_FILES['csv']) || (int) $_FILES['csv']['error'] !== UPLOAD_ERR_OK) {
+    $uploadErr = isset($_FILES['csv']['error']) ? (int) $_FILES['csv']['error'] : -1;
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => "Error al recibir el archivo CSV (código {$uploadErr})."]);
     exit;
 }
 
-$tmpPath  = $_FILES['csv']['tmp_name'];
-$origName = $_FILES['csv']['name'] ?? 'upload.csv';
+$tmpPath  = (string) $_FILES['csv']['tmp_name'];
+$origName = isset($_FILES['csv']['name']) ? (string) $_FILES['csv']['name'] : 'upload.csv';
 
-// Solo aceptar .csv o text/plain
 $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
 if (!in_array($ext, ['csv', 'txt'], true)) {
     http_response_code(422);
@@ -62,11 +74,12 @@ if (!in_array($ext, ['csv', 'txt'], true)) {
     exit;
 }
 
+// ── Lógica principal ──────────────────────────────────────────────────────────
 try {
     $db  = new Database();
     $pdo = $db->getConnection();
 
-    // Verificar admin
+    // Verificar rol admin
     $stmtAdmin = $pdo->prepare('SELECT role FROM users WHERE id = :id LIMIT 1');
     $stmtAdmin->execute([':id' => $requesterId]);
     $admin = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
@@ -80,13 +93,13 @@ try {
     $handle = fopen($tmpPath, 'r');
     if ($handle === false) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'No se pudo leer el archivo CSV.']);
+        echo json_encode(['status' => 'error', 'message' => 'No se pudo abrir el archivo CSV.', 'debug' => 'fopen failed']);
         exit;
     }
 
-    // Detectar delimitador (coma vs punto y coma) desde la primera línea
+    // Detectar delimitador leyendo la primera línea y rebobinando
     $firstLine = fgets($handle);
-    if ($firstLine === false) {
+    if ($firstLine === false || $firstLine === '') {
         fclose($handle);
         http_response_code(422);
         echo json_encode(['status' => 'error', 'message' => 'El archivo CSV está vacío.']);
@@ -95,8 +108,8 @@ try {
     rewind($handle);
     $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
 
-    // Leer cabecera
-    $rawHeaders = fgetcsv($handle, 0, $delimiter);
+    // Leer cabecera — longitud explícita 4096 para compatibilidad PHP 7.4/cPanel
+    $rawHeaders = fgetcsv($handle, 4096, $delimiter);
     if ($rawHeaders === false || $rawHeaders === null) {
         fclose($handle);
         http_response_code(422);
@@ -104,27 +117,44 @@ try {
         exit;
     }
 
-    // Normalizar cabeceras: minúsculas, sin tildes, sin espacios extra
-    $headers = array_map(static function (string $h): string {
-        $h = mb_strtolower(trim($h));
-        // Eliminar tildes básicas
-        $h = str_replace(['á','é','í','ó','ú','ñ'], ['a','e','i','o','u','n'], $h);
-        return $h;
+    // Normalizar cabeceras: minúsculas + eliminar tildes
+    $headers = array_map(static function ($h): string {
+        $h = mb_strtolower(trim((string) $h));
+        return str_replace(
+            ['á','é','í','ó','ú','ü','ñ'],
+            ['a','e','i','o','u','u','n'],
+            $h
+        );
     }, $rawHeaders);
 
-    // Mapear columnas por palabras clave
+    // Mapear columnas por palabras clave — usa cfs_str_contains() (PHP 7.4 safe)
     $colPhone = $colRef = $colFecha = $colInsignia = -1;
     foreach ($headers as $i => $h) {
-        if ($colPhone    === -1 && (str_contains($h, 'tel') || str_contains($h, 'phone') || str_contains($h, 'celular') || str_contains($h, 'numero') || str_contains($h, 'número'))) {
+        $i = (int) $i;
+        if ($colPhone === -1 && (
+            cfs_str_contains($h, 'tel')     ||
+            cfs_str_contains($h, 'phone')   ||
+            cfs_str_contains($h, 'celular') ||
+            cfs_str_contains($h, 'numero')
+        )) {
             $colPhone = $i;
         }
-        if ($colRef      === -1 && (str_contains($h, 'nombre') || str_contains($h, 'referencia'))) {
+        if ($colRef === -1 && (
+            cfs_str_contains($h, 'nombre') ||
+            cfs_str_contains($h, 'referencia')
+        )) {
             $colRef = $i;
         }
-        if ($colFecha    === -1 && (str_contains($h, 'fecha') || str_contains($h, 'ingreso'))) {
+        if ($colFecha === -1 && (
+            cfs_str_contains($h, 'fecha') ||
+            cfs_str_contains($h, 'ingreso')
+        )) {
             $colFecha = $i;
         }
-        if ($colInsignia === -1 && (str_contains($h, 'insignia') || str_contains($h, 'badge'))) {
+        if ($colInsignia === -1 && (
+            cfs_str_contains($h, 'insignia') ||
+            cfs_str_contains($h, 'badge')
+        )) {
             $colInsignia = $i;
         }
     }
@@ -143,12 +173,10 @@ try {
              added_by       = COALESCE(VALUES(added_by), added_by)'
     );
 
-    // Buscar user_id por teléfono
     $stmtFindUser = $pdo->prepare(
         'SELECT id FROM users WHERE phone = :phone LIMIT 1'
     );
 
-    // Actualizar group_join_date si el usuario ya existe
     $stmtUpdateProfile = $pdo->prepare(
         'INSERT INTO profiles (user_id, group_join_date)
          VALUES (:user_id, :gjd)
@@ -158,24 +186,33 @@ try {
     // ── Procesar filas ────────────────────────────────────────────────────────
     $summary = ['inserted' => 0, 'updated_profile' => 0, 'skipped' => 0, 'errors' => 0];
     $rows    = [];
-    $lineNum = 1; // cabecera ya consumida
+    $lineNum = 1; // la cabecera ya fue consumida
 
-    while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
+    while (($row = fgetcsv($handle, 4096, $delimiter)) !== false) {
         $lineNum++;
 
         // Saltar filas completamente vacías
-        if (empty(array_filter($row, static fn ($c) => trim($c) !== ''))) {
+        $nonEmpty = array_filter($row, static function ($c): bool {
+            return trim((string) $c) !== '';
+        });
+        if (empty($nonEmpty)) {
             continue;
         }
 
         // ── Extraer campos ────────────────────────────────────────────────────
-        $rawPhone  = isset($row[$colPhone])    ? trim((string) $row[$colPhone])    : '';
-        $refName   = ($colRef      >= 0 && isset($row[$colRef]))      ? trim((string) $row[$colRef])      : null;
-        $rawFecha  = ($colFecha    >= 0 && isset($row[$colFecha]))    ? trim((string) $row[$colFecha])    : '';
-        $insignia  = ($colInsignia >= 0 && isset($row[$colInsignia])) ? trim((string) $row[$colInsignia]) : '';
+        $rawPhone = isset($row[$colPhone]) ? trim((string) $row[$colPhone]) : '';
+        $refName  = ($colRef >= 0 && isset($row[$colRef]))
+            ? trim((string) $row[$colRef])
+            : null;
+        $rawFecha = ($colFecha >= 0 && isset($row[$colFecha]))
+            ? trim((string) $row[$colFecha])
+            : '';
+        $insignia = ($colInsignia >= 0 && isset($row[$colInsignia]))
+            ? trim((string) $row[$colInsignia])
+            : '';
 
         // ── Sanitizar teléfono: solo dígitos ──────────────────────────────────
-        $phone = preg_replace('/[^0-9]/', '', $rawPhone);
+        $phone = (string) preg_replace('/[^0-9]/', '', $rawPhone);
 
         if ($phone === '' || strlen($phone) < 7 || strlen($phone) > 20) {
             $summary['skipped']++;
@@ -188,25 +225,28 @@ try {
             continue;
         }
 
-        // ── Parsear fecha (soporta YYYY-MM-DD y DD/MM/YYYY) ──────────────────
+        // ── Parsear fecha: soporta YYYY-MM-DD y DD/MM/YYYY ───────────────────
         $groupJoinDate = null;
         if ($rawFecha !== '') {
-            // Intentar DD/MM/YYYY o DD-MM-YYYY
             if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $rawFecha, $m)) {
-                $groupJoinDate = sprintf('%04d-%02d-%02d', (int)$m[3], (int)$m[2], (int)$m[1]);
+                $groupJoinDate = sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]);
             } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFecha)) {
                 $groupJoinDate = $rawFecha;
             }
-            // Validar que sea una fecha real
             if ($groupJoinDate !== null) {
-                [$y, $mo, $d] = array_map('intval', explode('-', $groupJoinDate));
+                $parts = explode('-', $groupJoinDate);
+                $y  = (int) $parts[0];
+                $mo = (int) $parts[1];
+                $d  = (int) $parts[2];
                 if (!checkdate($mo, $d, $y)) {
                     $groupJoinDate = null;
                 }
             }
         }
 
-        $refNameFinal = ($refName !== '' && $refName !== null) ? mb_substr($refName, 0, 150) : null;
+        $refNameFinal = ($refName !== null && $refName !== '')
+            ? mb_substr($refName, 0, 150)
+            : null;
 
         try {
             // ── Upsert whitelist_phones ───────────────────────────────────────
@@ -215,10 +255,13 @@ try {
                 ':ref_name' => $refNameFinal,
                 ':added_by' => $requesterId,
             ]);
+            // rowCount() = 1 → INSERT nuevo; 2 → UPDATE existente; 0 → sin cambio
             $isNew = $stmtUpsert->rowCount() === 1;
-            $isNew ? $summary['inserted']++ : null;
+            if ($isNew) {
+                $summary['inserted']++;
+            }
 
-            // ── Actualizar profiles.group_join_date si usuario ya existe ──────
+            // ── Actualizar profiles.group_join_date si el usuario ya existe ────
             $profileUpdated = false;
             if ($groupJoinDate !== null) {
                 $stmtFindUser->execute([':phone' => $phone]);
@@ -266,5 +309,9 @@ try {
     if (!headers_sent()) {
         http_response_code(500);
     }
-    echo json_encode(['status' => 'error', 'message' => 'Error interno al procesar el CSV.']);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Error interno al procesar el CSV.',
+        'debug'   => $e->getMessage(),
+    ], JSON_UNESCAPED_UNICODE);
 }

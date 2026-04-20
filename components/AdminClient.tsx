@@ -22,6 +22,7 @@ import {
   Plus,
   List,
   Upload,
+  RefreshCw,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -160,6 +161,9 @@ export function AdminClient() {
   const [csvResult,            setCsvResult]            = useState<string | null>(null)
   const [csvError,             setCsvError]             = useState<string | null>(null)
   const csvInputRef = useRef<HTMLInputElement>(null)
+  const [syncRunning,          setSyncRunning]          = useState(false)
+  const [syncResult,           setSyncResult]           = useState<string | null>(null)
+  const [syncError,            setSyncError]            = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) return
@@ -254,6 +258,35 @@ export function AdminClient() {
       setCsvImporting(false)
       // Limpiar el input para permitir subir el mismo archivo de nuevo
       if (csvInputRef.current) csvInputRef.current.value = ""
+    }
+  }
+
+  async function handleSync() {
+    if (!session || syncRunning) return
+    setSyncError(null)
+    setSyncResult(null)
+    setSyncRunning(true)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/admin/sync_existing_users.php`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ requesterId: session.id }),
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message ?? json.debug ?? "Error al sincronizar.")
+      setSyncResult(
+        `${json.synced} perfil${json.synced !== 1 ? "es" : ""} actualizado${json.synced !== 1 ? "s" : ""} con insignias` +
+        (json.skippedNoMatch > 0 ? ` · ${json.skippedNoMatch} sin coincidencia` : "") +
+        (json.errors > 0 ? ` · ${json.errors} errores` : "") + "."
+      )
+      // Recargar historial para reflejar is_used actualizado
+      const hist     = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
+      const histJson = await hist.json()
+      if (histJson.status === "success") setWhitelistHistory(histJson.data ?? [])
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : "Error desconocido al sincronizar.")
+    } finally {
+      setSyncRunning(false)
     }
   }
 
@@ -597,6 +630,18 @@ export function AdminClient() {
               {csvResult}
             </div>
           )}
+          {syncError && (
+            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              {syncError}
+            </div>
+          )}
+          {syncResult && (
+            <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              {syncResult}
+            </div>
+          )}
 
           {/* Input oculto para selección de archivo CSV */}
           <input
@@ -610,11 +655,11 @@ export function AdminClient() {
             }}
           />
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               size="sm"
               className="flex-1 font-semibold"
-              disabled={whitelistAdding || csvImporting || whitelistPhone.trim() === ""}
+              disabled={whitelistAdding || csvImporting || syncRunning || whitelistPhone.trim() === ""}
               onClick={handleAddWhitelist}
             >
               {whitelistAdding ? (
@@ -627,7 +672,7 @@ export function AdminClient() {
               size="sm"
               variant="outline"
               className="font-semibold"
-              disabled={csvImporting || whitelistAdding}
+              disabled={csvImporting || whitelistAdding || syncRunning}
               onClick={() => {
                 setCsvError(null)
                 setCsvResult(null)
@@ -638,6 +683,19 @@ export function AdminClient() {
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando…</>
               ) : (
                 <><Upload className="h-4 w-4 mr-2" />Importar CSV</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="font-semibold"
+              disabled={syncRunning || csvImporting || whitelistAdding}
+              onClick={handleSync}
+            >
+              {syncRunning ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sincronizando…</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" />Sincronizar Directorio</>
               )}
             </Button>
           </div>

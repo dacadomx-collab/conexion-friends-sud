@@ -166,11 +166,12 @@ try {
 
     // ── Preparar statements ───────────────────────────────────────────────────
     $stmtUpsert = $pdo->prepare(
-        'INSERT INTO whitelist_phones (phone, is_used, reference_name, added_by, created_at)
-         VALUES (:phone, 0, :ref_name, :added_by, NOW())
+        'INSERT INTO whitelist_phones (phone, is_used, reference_name, group_join_date, added_by, created_at)
+         VALUES (:phone, 0, :ref_name, :gjd, :added_by, NOW())
          ON DUPLICATE KEY UPDATE
-             reference_name = COALESCE(VALUES(reference_name), reference_name),
-             added_by       = COALESCE(VALUES(added_by), added_by)'
+             reference_name  = COALESCE(VALUES(reference_name),  reference_name),
+             group_join_date = COALESCE(VALUES(group_join_date), group_join_date),
+             added_by        = COALESCE(VALUES(added_by),        added_by)'
     );
 
     $stmtFindUser = $pdo->prepare(
@@ -249,10 +250,11 @@ try {
             : null;
 
         try {
-            // ── Upsert whitelist_phones ───────────────────────────────────────
+            // ── Upsert whitelist_phones (incluye group_join_date) ─────────────
             $stmtUpsert->execute([
                 ':phone'    => $phone,
                 ':ref_name' => $refNameFinal,
+                ':gjd'      => $groupJoinDate,
                 ':added_by' => $requesterId,
             ]);
             // rowCount() = 1 → INSERT nuevo; 2 → UPDATE existente; 0 → sin cambio

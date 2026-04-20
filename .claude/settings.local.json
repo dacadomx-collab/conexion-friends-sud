@@ -7,7 +7,11 @@
       "Bash(grep -i \"INSERT INTO \\\\`companies\\\\`\" c:/xampp/htdocs/brokersconnect_dev/BackUp/brokersconnect_bd.sql)",
       "Bash(grep -E \"^\\\\./\\(api|app|database|knowledge\\)$\")",
       "Bash(xargs grep *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(php -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/sync_existing_users.php\")",
+      "Bash(php -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/import_whitelist_csv.php\")",
+      "Bash(\"c:/xampp/php/php.exe\" -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/sync_existing_users.php\")",
+      "Bash(\"c:/xampp/php/php.exe\" -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/import_whitelist_csv.php\")"
     ]
   }
 }

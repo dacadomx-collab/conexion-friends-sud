@@ -8,7 +8,7 @@
 // Estructura del CSV (mapeo fijo por índice, cabecera ignorada):
 //   Índice 0 → Teléfono          → phone          (solo dígitos)
 //   Índice 1 → Nombre_Referencia → reference_name
-//   Índice 2 → fECHA DE iNGRESO  → group_join_date (YYYY-MM-DD o DD/MM/YYYY)
+//   Índice 2 → fECHA DE iNGRESO  → group_join_date (numérico o texto en español)
 //   Índice 3 → Insignia          → SOLO INFORMATIVO, no se almacena
 //
 // Por cada fila:
@@ -22,6 +22,62 @@
 // =============================================================================
 
 declare(strict_types=1);
+
+// ── Parsear texto de fecha en español a YYYY-MM-DD ────────────────────────────
+// Soporta: "Marzo 2026", "27 Febrero 2026", "Abr 2024", "27 de febrero de 2026"
+// Devuelve string YYYY-MM-DD si logra extraer mes+año, o null si no.
+function parseSpanishDateToISO(string $raw): ?string
+{
+    $monthMap = [
+        'enero' => 1, 'febrero' => 2, 'marzo' => 3, 'abril' => 4,
+        'mayo' => 5, 'junio' => 6, 'julio' => 7, 'agosto' => 8,
+        'septiembre' => 9, 'setiembre' => 9, 'octubre' => 10,
+        'noviembre' => 11, 'diciembre' => 12,
+        'ene' => 1, 'feb' => 2, 'mar' => 3, 'abr' => 4,
+        'may' => 5, 'jun' => 6, 'jul' => 7, 'ago' => 8,
+        'sep' => 9, 'set' => 9, 'oct' => 10, 'nov' => 11, 'dic' => 12,
+    ];
+
+    $lower = (string) mb_strtolower(trim($raw), 'UTF-8');
+
+    // Extraer año (4 dígitos: 19xx o 20xx)
+    if (!preg_match('/\b(19\d{2}|20\d{2})\b/', $lower, $ym)) {
+        return null;
+    }
+    $year = (int) $ym[1];
+
+    // Extraer mes por nombre (iterar de más largo a más corto — el orden del array garantiza prioridad)
+    $month = null;
+    foreach ($monthMap as $name => $num) {
+        if (strpos($lower, $name) !== false) {
+            $month = $num;
+            break;
+        }
+    }
+    if ($month === null) {
+        return null;
+    }
+
+    // Extraer día (número 1-31 que NO sea el año)
+    $day = 1;
+    $withoutYear = (string) str_replace((string) $year, '', $lower);
+    if (preg_match('/\b(\d{1,2})\b/', $withoutYear, $dm)) {
+        $candidate = (int) $dm[1];
+        if ($candidate >= 1 && $candidate <= 31) {
+            $day = $candidate;
+        }
+    }
+
+    if (!checkdate($month, $day, $year)) {
+        // Día inválido para ese mes → usar día 1 como fallback
+        $day = 1;
+        if (!checkdate($month, 1, $year)) {
+            return null;
+        }
+    }
+
+    return sprintf('%04d-%02d-%02d', $year, $month, $day);
+}
 
 // Convierte errores no-fatales en ErrorException para que el catch los capture
 set_error_handler(static function (int $errno, string $errstr, string $errfile, int $errline): bool {
@@ -164,21 +220,34 @@ try {
             continue;
         }
 
-        // ── Parsear fecha: YYYY-MM-DD | YYYY/MM/DD | YYYY.MM.DD | DD/MM/YYYY | DD-MM-YYYY | DD.MM.YYYY
+        // ── Parsear fecha: 3 niveles de fallback ─────────────────────────────
+        // Nivel 1: formato numérico (YYYY-MM-DD, YYYY/MM/DD, DD/MM/YYYY, etc.)
+        // Nivel 2: texto en español ("Marzo 2026", "27 Febrero 2026", etc.)
+        // Nivel 3: si no se puede parsear pero había texto → guardar texto raw (NUNCA null)
         $groupJoinDate = null;
         if ($rawFecha !== '') {
-            // ISO / MySQL style (year first): YYYY[-/.]MM[-/.]DD
+            // Nivel 1 — ISO / MySQL (año primero): YYYY[-/.]MM[-/.]DD
             if (preg_match('/^(\d{4})[\-\/\.](\d{1,2})[\-\/\.](\d{1,2})$/', $rawFecha, $m)) {
                 $y = (int) $m[1]; $mo = (int) $m[2]; $d = (int) $m[3];
                 if (checkdate($mo, $d, $y)) {
                     $groupJoinDate = sprintf('%04d-%02d-%02d', $y, $mo, $d);
                 }
             } elseif (preg_match('/^(\d{1,2})[\-\/\.](\d{1,2})[\-\/\.](\d{4})$/', $rawFecha, $m)) {
-                // European / Mexican style (day first): DD[-/.]MM[-/.]YYYY
+                // Nivel 1 — Europeo/Mexicano (día primero): DD[-/.]MM[-/.]YYYY
                 $d = (int) $m[1]; $mo = (int) $m[2]; $y = (int) $m[3];
                 if (checkdate($mo, $d, $y)) {
                     $groupJoinDate = sprintf('%04d-%02d-%02d', $y, $mo, $d);
                 }
+            }
+
+            // Nivel 2 — texto en español
+            if ($groupJoinDate === null) {
+                $groupJoinDate = parseSpanishDateToISO($rawFecha);
+            }
+
+            // Nivel 3 — guardar texto original si todo lo anterior falló
+            if ($groupJoinDate === null) {
+                $groupJoinDate = mb_substr($rawFecha, 0, 100, 'UTF-8');
             }
         }
 

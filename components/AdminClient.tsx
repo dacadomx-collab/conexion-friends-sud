@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -21,6 +21,7 @@ import {
   PhoneCall,
   Plus,
   List,
+  Upload,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -155,6 +156,10 @@ export function AdminClient() {
   const [whitelistError,       setWhitelistError]       = useState<string | null>(null)
   const [whitelistSuccess,     setWhitelistSuccess]     = useState<string | null>(null)
   const [whitelistModalOpen,   setWhitelistModalOpen]   = useState(false)
+  const [csvImporting,         setCsvImporting]         = useState(false)
+  const [csvResult,            setCsvResult]            = useState<string | null>(null)
+  const [csvError,             setCsvError]             = useState<string | null>(null)
+  const csvInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!session) return
@@ -217,6 +222,38 @@ export function AdminClient() {
       setWhitelistError(err instanceof Error ? err.message : "Error desconocido.")
     } finally {
       setWhitelistAdding(false)
+    }
+  }
+
+  async function handleCsvImport(file: File) {
+    if (!session || csvImporting) return
+    setCsvError(null)
+    setCsvResult(null)
+    setCsvImporting(true)
+    try {
+      const form = new FormData()
+      form.append("csv", file)
+      form.append("requesterId", String(session.id))
+      const res  = await fetch(`${API_BASE_URL}/api/admin/import_whitelist_csv.php`, {
+        method: "POST",
+        body:   form,
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message ?? "Error al importar.")
+      const s = json.summary as { inserted: number; updated_profile: number; skipped: number; errors: number }
+      setCsvResult(
+        `CSV importado: ${s.inserted} insertados, ${s.updated_profile} perfiles actualizados, ${s.skipped} omitidos, ${s.errors} errores.`
+      )
+      // Recargar historial
+      const hist     = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
+      const histJson = await hist.json()
+      if (histJson.status === "success") setWhitelistHistory(histJson.data ?? [])
+    } catch (err) {
+      setCsvError(err instanceof Error ? err.message : "Error desconocido al importar CSV.")
+    } finally {
+      setCsvImporting(false)
+      // Limpiar el input para permitir subir el mismo archivo de nuevo
+      if (csvInputRef.current) csvInputRef.current.value = ""
     }
   }
 
@@ -548,19 +585,62 @@ export function AdminClient() {
               {whitelistSuccess}
             </div>
           )}
+          {csvError && (
+            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              {csvError}
+            </div>
+          )}
+          {csvResult && (
+            <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              {csvResult}
+            </div>
+          )}
 
-          <Button
-            size="sm"
-            className="w-full font-semibold"
-            disabled={whitelistAdding || whitelistPhone.trim() === ""}
-            onClick={handleAddWhitelist}
-          >
-            {whitelistAdding ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Agregando…</>
-            ) : (
-              <><Plus className="h-4 w-4 mr-2" />Agregar Número</>
-            )}
-          </Button>
+          {/* Input oculto para selección de archivo CSV */}
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleCsvImport(file)
+            }}
+          />
+
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="flex-1 font-semibold"
+              disabled={whitelistAdding || csvImporting || whitelistPhone.trim() === ""}
+              onClick={handleAddWhitelist}
+            >
+              {whitelistAdding ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Agregando…</>
+              ) : (
+                <><Plus className="h-4 w-4 mr-2" />Agregar Número</>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="font-semibold"
+              disabled={csvImporting || whitelistAdding}
+              onClick={() => {
+                setCsvError(null)
+                setCsvResult(null)
+                csvInputRef.current?.click()
+              }}
+            >
+              {csvImporting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando…</>
+              ) : (
+                <><Upload className="h-4 w-4 mr-2" />Importar CSV</>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Historial reciente — últimos 5 */}

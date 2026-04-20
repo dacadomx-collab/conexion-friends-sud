@@ -146,7 +146,8 @@ try {
         // ── Extraer campos por índice fijo ────────────────────────────────────
         $rawPhone = isset($row[0]) ? trim((string) $row[0]) : '';
         $refName  = isset($row[1]) ? trim((string) $row[1]) : '';
-        $rawFecha = isset($row[2]) ? trim((string) $row[2]) : '';
+        // Strip non-breaking spaces (\xC2\xA0, common in Excel exports) and control chars
+        $rawFecha = isset($row[2]) ? trim(str_replace(["\xC2\xA0", "\xA0", "\r", "\n", "\t"], '', (string) $row[2])) : '';
         $insignia = isset($row[3]) ? trim((string) $row[3]) : '';
 
         // ── Sanitizar teléfono: solo dígitos ──────────────────────────────────
@@ -163,21 +164,20 @@ try {
             continue;
         }
 
-        // ── Parsear fecha: soporta YYYY-MM-DD y DD/MM/YYYY ───────────────────
+        // ── Parsear fecha: YYYY-MM-DD | YYYY/MM/DD | YYYY.MM.DD | DD/MM/YYYY | DD-MM-YYYY | DD.MM.YYYY
         $groupJoinDate = null;
         if ($rawFecha !== '') {
-            if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/', $rawFecha, $m)) {
-                $groupJoinDate = sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]);
-            } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawFecha)) {
-                $groupJoinDate = $rawFecha;
-            }
-            if ($groupJoinDate !== null) {
-                $parts = explode('-', $groupJoinDate);
-                $y  = (int) $parts[0];
-                $mo = (int) $parts[1];
-                $d  = (int) $parts[2];
-                if (!checkdate($mo, $d, $y)) {
-                    $groupJoinDate = null;
+            // ISO / MySQL style (year first): YYYY[-/.]MM[-/.]DD
+            if (preg_match('/^(\d{4})[\-\/\.](\d{1,2})[\-\/\.](\d{1,2})$/', $rawFecha, $m)) {
+                $y = (int) $m[1]; $mo = (int) $m[2]; $d = (int) $m[3];
+                if (checkdate($mo, $d, $y)) {
+                    $groupJoinDate = sprintf('%04d-%02d-%02d', $y, $mo, $d);
+                }
+            } elseif (preg_match('/^(\d{1,2})[\-\/\.](\d{1,2})[\-\/\.](\d{4})$/', $rawFecha, $m)) {
+                // European / Mexican style (day first): DD[-/.]MM[-/.]YYYY
+                $d = (int) $m[1]; $mo = (int) $m[2]; $y = (int) $m[3];
+                if (checkdate($mo, $d, $y)) {
+                    $groupJoinDate = sprintf('%04d-%02d-%02d', $y, $mo, $d);
                 }
             }
         }
@@ -218,6 +218,7 @@ try {
                 'phone'          => $phone,
                 'referenceName'  => $refNameFinal,
                 'groupJoinDate'  => $groupJoinDate,
+                'rawDate'        => $rawFecha !== '' ? $rawFecha : null,
                 'insigniaNote'   => $insignia !== '' ? $insignia : null,
                 'status'         => $isNew ? 'inserted' : 'updated',
                 'profileUpdated' => $profileUpdated,

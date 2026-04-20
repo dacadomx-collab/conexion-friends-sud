@@ -11,7 +11,9 @@
       "Bash(php -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/sync_existing_users.php\")",
       "Bash(php -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/import_whitelist_csv.php\")",
       "Bash(\"c:/xampp/php/php.exe\" -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/sync_existing_users.php\")",
-      "Bash(\"c:/xampp/php/php.exe\" -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/import_whitelist_csv.php\")"
+      "Bash(\"c:/xampp/php/php.exe\" -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/import_whitelist_csv.php\")",
+      "Bash(php -l \"c:\\\\xampp\\\\htdocs\\\\CONEXION_FRIENDS_SUD\\\\Conexion_FS_Dev\\\\api\\\\admin\\\\import_whitelist_csv.php\")",
+      "Bash(/c/xampp/php/php -l \"c:/xampp/htdocs/CONEXION_FRIENDS_SUD/Conexion_FS_Dev/api/admin/import_whitelist_csv.php\")"
     ]
   }
 }

@@ -5,11 +5,11 @@
 // Método  : POST multipart/form-data
 // Campos  : requesterId (int, POST), csv (archivo .csv)
 //
-// Columnas esperadas del CSV (detección case-insensitive, cualquier orden):
-//   - Teléfono   : header con "tel", "phone", "celular" o "numero"
-//   - Referencia : header con "nombre" o "referencia"
-//   - Fecha      : header con "fecha" o "ingreso" → profiles.group_join_date
-//   - Insignia   : header con "insignia" o "badge"  → INFORMATIVO, no se almacena
+// Estructura del CSV (mapeo fijo por índice, cabecera ignorada):
+//   Índice 0 → Teléfono          → phone          (solo dígitos)
+//   Índice 1 → Nombre_Referencia → reference_name
+//   Índice 2 → fECHA DE iNGRESO  → group_join_date (YYYY-MM-DD o DD/MM/YYYY)
+//   Índice 3 → Insignia          → SOLO INFORMATIVO, no se almacena
 //
 // Por cada fila:
 //   1. Sanitizar teléfono a solo dígitos (preg_replace).
@@ -31,16 +31,6 @@ set_error_handler(static function (int $errno, string $errstr, string $errfile, 
 require_once __DIR__ . '/../conexion.php';
 
 header('Content-Type: application/json; charset=utf-8');
-
-// ── Helpers compatibles PHP 7.4 ──────────────────────────────────────────────
-
-/**
- * Reemplaza str_contains() de PHP 8.0.
- * Devuelve true si $haystack contiene $needle.
- */
-function cfs_str_contains(string $haystack, string $needle): bool {
-    return $needle === '' || strpos($haystack, $needle) !== false;
-}
 
 // ── Validaciones previas (fuera del try → salidas limpias garantizadas) ───────
 
@@ -108,60 +98,13 @@ try {
     rewind($handle);
     $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
 
-    // Leer cabecera — longitud explícita 4096 para compatibilidad PHP 7.4/cPanel
-    $rawHeaders = fgetcsv($handle, 4096, $delimiter);
-    if ($rawHeaders === false || $rawHeaders === null) {
+    // Consumir la fila de cabecera (índices 0-3 son fijos, no necesitamos leerla)
+    $headerRow = fgetcsv($handle, 4096, $delimiter);
+    if ($headerRow === false || $headerRow === null) {
         fclose($handle);
         http_response_code(422);
         echo json_encode(['status' => 'error', 'message' => 'No se pudo leer la cabecera del CSV.']);
         exit;
-    }
-
-    // Normalizar cabeceras: minúsculas + eliminar tildes
-    $headers = array_map(static function ($h): string {
-        $h = mb_strtolower(trim((string) $h));
-        return str_replace(
-            ['á','é','í','ó','ú','ü','ñ'],
-            ['a','e','i','o','u','u','n'],
-            $h
-        );
-    }, $rawHeaders);
-
-    // Mapear columnas por palabras clave — usa cfs_str_contains() (PHP 7.4 safe)
-    $colPhone = $colRef = $colFecha = $colInsignia = -1;
-    foreach ($headers as $i => $h) {
-        $i = (int) $i;
-        if ($colPhone === -1 && (
-            cfs_str_contains($h, 'tel')     ||
-            cfs_str_contains($h, 'phone')   ||
-            cfs_str_contains($h, 'celular') ||
-            cfs_str_contains($h, 'numero')
-        )) {
-            $colPhone = $i;
-        }
-        if ($colRef === -1 && (
-            cfs_str_contains($h, 'nombre') ||
-            cfs_str_contains($h, 'referencia')
-        )) {
-            $colRef = $i;
-        }
-        if ($colFecha === -1 && (
-            cfs_str_contains($h, 'fecha') ||
-            cfs_str_contains($h, 'ingreso')
-        )) {
-            $colFecha = $i;
-        }
-        if ($colInsignia === -1 && (
-            cfs_str_contains($h, 'insignia') ||
-            cfs_str_contains($h, 'badge')
-        )) {
-            $colInsignia = $i;
-        }
-    }
-
-    // Si no se detecta columna de teléfono, asumir columna 0
-    if ($colPhone === -1) {
-        $colPhone = 0;
     }
 
     // ── Preparar statements ───────────────────────────────────────────────────
@@ -200,17 +143,11 @@ try {
             continue;
         }
 
-        // ── Extraer campos ────────────────────────────────────────────────────
-        $rawPhone = isset($row[$colPhone]) ? trim((string) $row[$colPhone]) : '';
-        $refName  = ($colRef >= 0 && isset($row[$colRef]))
-            ? trim((string) $row[$colRef])
-            : null;
-        $rawFecha = ($colFecha >= 0 && isset($row[$colFecha]))
-            ? trim((string) $row[$colFecha])
-            : '';
-        $insignia = ($colInsignia >= 0 && isset($row[$colInsignia]))
-            ? trim((string) $row[$colInsignia])
-            : '';
+        // ── Extraer campos por índice fijo ────────────────────────────────────
+        $rawPhone = isset($row[0]) ? trim((string) $row[0]) : '';
+        $refName  = isset($row[1]) ? trim((string) $row[1]) : '';
+        $rawFecha = isset($row[2]) ? trim((string) $row[2]) : '';
+        $insignia = isset($row[3]) ? trim((string) $row[3]) : '';
 
         // ── Sanitizar teléfono: solo dígitos ──────────────────────────────────
         $phone = (string) preg_replace('/[^0-9]/', '', $rawPhone);
@@ -245,9 +182,7 @@ try {
             }
         }
 
-        $refNameFinal = ($refName !== null && $refName !== '')
-            ? mb_substr($refName, 0, 150)
-            : null;
+        $refNameFinal = ($refName !== '') ? mb_substr($refName, 0, 150) : null;
 
         try {
             // ── Upsert whitelist_phones (incluye group_join_date) ─────────────

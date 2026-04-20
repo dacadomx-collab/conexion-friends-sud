@@ -18,6 +18,9 @@ import {
   ChevronRight,
   EyeOff,
   UserX,
+  PhoneCall,
+  Plus,
+  List,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -28,6 +31,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { API_BASE_URL } from "@/lib/api"
 import { InvitationPasswordAdmin } from "@/components/InvitationPasswordAdmin"
 
@@ -57,6 +66,13 @@ interface DepartureEntry {
   action:    "hidden" | "deleted"
   reason:    string | null
   createdAt: string
+}
+
+interface WhitelistEntry {
+  phone:       string
+  isUsed:      boolean
+  addedByName: string | null
+  createdAt:   string
 }
 
 interface UserDraft {
@@ -131,6 +147,15 @@ export function AdminClient() {
   const [loadingDepartures, setLoadingDepartures] = useState(true)
   const [departuresError,   setDeparturesError]   = useState<string | null>(null)
 
+  // ── Lista Blanca ───────────────────────────────────────────────────────────
+  const [whitelistHistory,     setWhitelistHistory]     = useState<WhitelistEntry[]>([])
+  const [whitelistLoading,     setWhitelistLoading]     = useState(true)
+  const [whitelistPhone,       setWhitelistPhone]       = useState("")
+  const [whitelistAdding,      setWhitelistAdding]      = useState(false)
+  const [whitelistError,       setWhitelistError]       = useState<string | null>(null)
+  const [whitelistSuccess,     setWhitelistSuccess]     = useState<string | null>(null)
+  const [whitelistModalOpen,   setWhitelistModalOpen]   = useState(false)
+
   useEffect(() => {
     if (!session) return
     setLoadingList(true)
@@ -156,6 +181,44 @@ export function AdminClient() {
       .catch(() => setDeparturesError("Error de red al cargar el registro de bajas."))
       .finally(() => setLoadingDepartures(false))
   }, [session])
+
+  useEffect(() => {
+    if (!session) return
+    setWhitelistLoading(true)
+    fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.status === "success") setWhitelistHistory(json.data ?? [])
+      })
+      .catch(() => {})
+      .finally(() => setWhitelistLoading(false))
+  }, [session])
+
+  async function handleAddWhitelist() {
+    if (!session || whitelistAdding) return
+    setWhitelistError(null)
+    setWhitelistSuccess(null)
+    setWhitelistAdding(true)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/admin/add_whitelist.php`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ phone: whitelistPhone, requesterId: session.id }),
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message)
+      setWhitelistSuccess(`Número ${json.data.phone} agregado correctamente.`)
+      setWhitelistPhone("")
+      // Recargar historial
+      const hist = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
+      const histJson = await hist.json()
+      if (histJson.status === "success") setWhitelistHistory(histJson.data ?? [])
+    } catch (err) {
+      setWhitelistError(err instanceof Error ? err.message : "Error desconocido.")
+    } finally {
+      setWhitelistAdding(false)
+    }
+  }
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
   // hidden  = usuarios con status='inactive' (ya en memoria desde get_users_admin)
@@ -436,7 +499,165 @@ export function AdminClient() {
         <InvitationPasswordAdmin adminId={session.id} />
 
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 3 — Lista de Usuarios Registrados (abajo)
+            BLOQUE 3 — Gestión de Lista Blanca (Acceso)
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="border-t border-border/60 pt-2" />
+
+        <div className="flex items-center gap-2">
+          <PhoneCall className="h-5 w-5 text-primary shrink-0" />
+          <h2 className="font-bold text-foreground text-base">Gestión de Lista Blanca (Acceso)</h2>
+          {!whitelistLoading && (
+            <button
+              type="button"
+              onClick={() => setWhitelistModalOpen(true)}
+              className="ml-auto flex items-center gap-1.5 text-xs text-primary hover:underline focus-visible:outline-none"
+            >
+              <List className="h-3.5 w-3.5" />
+              Ver todos los registros
+            </button>
+          )}
+        </div>
+
+        {/* Formulario de ingreso */}
+        <div className="rounded-xl border border-border/60 bg-stone-50 dark:bg-stone-900 px-4 py-4 space-y-3">
+          <div className="space-y-1.5">
+            <Input
+              placeholder="Ej. +52 555 123 4567"
+              value={whitelistPhone}
+              onChange={(e) => {
+                setWhitelistPhone(e.target.value)
+                setWhitelistError(null)
+                setWhitelistSuccess(null)
+              }}
+              disabled={whitelistAdding}
+            />
+            <p className="text-xs text-muted-foreground">
+              Nota: Puedes incluir el código de país con el signo +, espacios o guiones. El sistema lo limpiará automáticamente.
+            </p>
+          </div>
+
+          {whitelistError && (
+            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              {whitelistError}
+            </div>
+          )}
+          {whitelistSuccess && (
+            <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              {whitelistSuccess}
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            className="w-full font-semibold"
+            disabled={whitelistAdding || whitelistPhone.trim() === ""}
+            onClick={handleAddWhitelist}
+          >
+            {whitelistAdding ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Agregando…</>
+            ) : (
+              <><Plus className="h-4 w-4 mr-2" />Agregar Número</>
+            )}
+          </Button>
+        </div>
+
+        {/* Historial reciente — últimos 5 */}
+        {whitelistLoading ? (
+          <div className="flex justify-center items-center gap-2 py-6 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Cargando historial…
+          </div>
+        ) : whitelistHistory.length === 0 ? (
+          <p className="text-center text-xs text-muted-foreground py-4">Sin números en la lista blanca aún.</p>
+        ) : (
+          <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-secondary/40 border-b border-border/60">
+                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Número</th>
+                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground hidden sm:table-cell">Agregado por</th>
+                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Fecha</th>
+                  <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Usado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {whitelistHistory.slice(0, 5).map((entry) => (
+                  <tr key={entry.phone} className="bg-background hover:bg-secondary/20 transition-colors">
+                    <td className="px-3 py-2 font-mono text-foreground">{entry.phone}</td>
+                    <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">
+                      {entry.addedByName ?? <span className="italic">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground tabular-nums">
+                      {new Date(entry.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      {entry.isUsed ? (
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Utilizado" />
+                      ) : (
+                        <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/40" title="Disponible" />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Modal: Ver todos los registros */}
+        <Dialog open={whitelistModalOpen} onOpenChange={setWhitelistModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <PhoneCall className="h-4 w-4 text-primary" />
+                Historial completo — Lista Blanca
+              </DialogTitle>
+            </DialogHeader>
+            {whitelistHistory.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">Sin registros.</p>
+            ) : (
+              <table className="w-full text-xs mt-2">
+                <thead>
+                  <tr className="bg-secondary/40 border-b border-border/60">
+                    <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Número</th>
+                    <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Agregado por</th>
+                    <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Fecha</th>
+                    <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Usado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {whitelistHistory.map((entry) => (
+                    <tr key={entry.phone} className="bg-background hover:bg-secondary/20 transition-colors">
+                      <td className="px-3 py-2 font-mono text-foreground">{entry.phone}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {entry.addedByName ?? <span className="italic">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground tabular-nums">
+                        {new Date(entry.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {entry.isUsed ? (
+                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-700">
+                            Utilizado
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] bg-secondary text-muted-foreground">
+                            Disponible
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            BLOQUE 4 — Lista de Usuarios Registrados (abajo)
         ══════════════════════════════════════════════════════════════════ */}
         <div className="border-t border-border/60 pt-2" />
 
@@ -669,7 +890,7 @@ export function AdminClient() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 4 — Bajas / Ocultos (registro de auditoría)
+            BLOQUE 5 — Bajas / Ocultos (registro de auditoría)
         ══════════════════════════════════════════════════════════════════ */}
         <div id="seccion-bajas" className="border-t border-border/60 pt-2 scroll-mt-20" />
 

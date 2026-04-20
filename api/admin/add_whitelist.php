@@ -3,7 +3,7 @@
 // api/admin/add_whitelist.php — Agregar número a la Lista Blanca (Admin)
 // =============================================================================
 // Método : POST JSON
-// Payload: { "phone": string, "requesterId": int }
+// Payload: { "phone": string, "requesterId": int, "groupJoinDate": string (YYYY-MM-DD, opcional) }
 // Returns: { "status": "success", "data": { "phone": string } }
 //          HTTP 409 si el número ya existe en whitelist_phones
 // =============================================================================
@@ -28,8 +28,9 @@ try {
     $body = (string) file_get_contents('php://input');
     $input = json_decode($body, true);
 
-    $requesterId = isset($input['requesterId']) ? (int) $input['requesterId'] : 0;
-    $rawPhone    = isset($input['phone'])       ? (string) $input['phone']       : '';
+    $requesterId = isset($input['requesterId']) ? (int)    $input['requesterId']    : 0;
+    $rawPhone    = isset($input['phone'])       ? (string) $input['phone']         : '';
+    $rawDate     = isset($input['groupJoinDate']) ? trim((string) $input['groupJoinDate']) : '';
 
     if ($requesterId <= 0) {
         http_response_code(400);
@@ -60,6 +61,15 @@ try {
         exit;
     }
 
+    // Normalizar fecha: YYYY-MM-DD válido o fecha de hoy como fallback
+    $groupJoinDate = date('Y-m-d');
+    if ($rawDate !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawDate)) {
+        $parts = explode('-', $rawDate);
+        if (checkdate((int) $parts[1], (int) $parts[2], (int) $parts[0])) {
+            $groupJoinDate = $rawDate;
+        }
+    }
+
     // Verificar duplicado
     $stmtCheck = $pdo->prepare('SELECT phone FROM whitelist_phones WHERE phone = :phone LIMIT 1');
     $stmtCheck->execute([':phone' => $phone]);
@@ -71,11 +81,12 @@ try {
 
     // Insertar
     $stmtInsert = $pdo->prepare(
-        'INSERT INTO whitelist_phones (phone, is_used, added_by, created_at)
-         VALUES (:phone, 0, :added_by, NOW())'
+        'INSERT INTO whitelist_phones (phone, is_used, group_join_date, added_by, created_at)
+         VALUES (:phone, 0, :gjd, :added_by, NOW())'
     );
     $stmtInsert->execute([
         ':phone'    => $phone,
+        ':gjd'      => $groupJoinDate,
         ':added_by' => $requesterId,
     ]);
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
@@ -109,6 +109,7 @@ export function DashboardClient() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [privacyLoading,  setPrivacyLoading]  = useState(false)
   const [privacyError,    setPrivacyError]    = useState<string | null>(null)
+  const deleteInFlightRef = useRef(false)
 
   // ── Leer sesión de localStorage (client-side only) ────────────────────────
   useEffect(() => {
@@ -176,7 +177,9 @@ export function DashboardClient() {
   }
 
   async function handleDeleteAccount() {
-    if (!session) return
+    // Guardia síncrona: bloquea re-clics antes de que React re-renderice con disabled
+    if (!session || deleteInFlightRef.current) return
+    deleteInFlightRef.current = true
     setPrivacyLoading(true)
     setPrivacyError(null)
     try {
@@ -191,6 +194,8 @@ export function DashboardClient() {
       router.push("/")
     } catch (err) {
       setPrivacyError(err instanceof Error ? err.message : "Error desconocido.")
+    } finally {
+      deleteInFlightRef.current = false
       setPrivacyLoading(false)
     }
   }

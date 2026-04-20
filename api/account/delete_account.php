@@ -45,20 +45,7 @@ try {
     $db  = new Database();
     $pdo = $db->getConnection();
 
-    // ── Verificar que el usuario existe ───────────────────────────────────────
-    $stmtUser = $pdo->prepare('SELECT full_name FROM users WHERE id = :id LIMIT 1');
-    $stmtUser->execute([':id' => $userId]);
-    $user = $stmtUser->fetch(PDO::FETCH_ASSOC);
-
-    if (!$user) {
-        http_response_code(404);
-        echo json_encode(['status' => 'error', 'message' => 'Usuario no encontrado.']);
-        exit;
-    }
-
-    $userName = (string) $user['full_name'];
-
-    // ── Capturar rutas físicas de fotos ANTES de la transacción ──────────────
+    // ── Capturar rutas físicas de fotos (lectura previa, fuera de tx) ─────────
     $stmtPhotos = $pdo->prepare('SELECT photo_url FROM profile_photos WHERE user_id = :id');
     $stmtPhotos->execute([':id' => $userId]);
     $photoPaths = [];
@@ -69,14 +56,34 @@ try {
         }
     }
 
-    // ── Auditoría: guardar el nombre ANTES de borrar ──────────────────────────
+    // ── Transacción con bloqueo de fila (FOR UPDATE) ──────────────────────────
+    // SELECT FOR UPDATE serializa requests concurrentes: el segundo bloquea aquí
+    // hasta que el primero haga COMMIT (y borre el usuario), luego recibe null
+    // y sale limpiamente como 404. Esto hace imposible duplicados en el log.
+    $pdo->beginTransaction();
+
+    $stmtLock = $pdo->prepare(
+        'SELECT id, full_name FROM users WHERE id = :id LIMIT 1 FOR UPDATE'
+    );
+    $stmtLock->execute([':id' => $userId]);
+    $user = $stmtLock->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        $pdo->rollBack();
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario no encontrado.']);
+        exit;
+    }
+
+    $userName = (string) $user['full_name'];
+
+    // ── Auditoría DENTRO de la transacción ────────────────────────────────────
     $stmtLog = $pdo->prepare(
         'INSERT INTO user_departures_log (user_name, action) VALUES (:user_name, :action)'
     );
     $stmtLog->execute([':user_name' => $userName, ':action' => 'deleted']);
 
-    // ── Borrado en cascada manual (transacción atómica) ───────────────────────
-    $pdo->beginTransaction();
+    // ── Borrado en cascada manual ─────────────────────────────────────────────
 
     // 1. Redes sociales
     $pdo->prepare('DELETE FROM social_networks WHERE user_id = :id')

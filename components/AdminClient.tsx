@@ -153,6 +153,7 @@ export function AdminClient() {
   const [whitelistHistory,     setWhitelistHistory]     = useState<WhitelistEntry[]>([])
   const [whitelistLoading,     setWhitelistLoading]     = useState(true)
   const [whitelistPhone,       setWhitelistPhone]       = useState("")
+  const [whitelistDate,        setWhitelistDate]        = useState(() => new Date().toISOString().split("T")[0])
   const [whitelistAdding,      setWhitelistAdding]      = useState(false)
   const [whitelistError,       setWhitelistError]       = useState<string | null>(null)
   const [whitelistSuccess,     setWhitelistSuccess]     = useState<string | null>(null)
@@ -212,12 +213,17 @@ export function AdminClient() {
       const res  = await fetch(`${API_BASE_URL}/api/admin/add_whitelist.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ phone: whitelistPhone, requesterId: session.id }),
+        body:    JSON.stringify({
+          phone:         whitelistPhone,
+          requesterId:   session.id,
+          groupJoinDate: whitelistDate || new Date().toISOString().split("T")[0],
+        }),
       })
       const json = await res.json()
       if (json.status !== "success") throw new Error(json.message)
       setWhitelistSuccess(`Número ${json.data.phone} agregado correctamente.`)
       setWhitelistPhone("")
+      setWhitelistDate(new Date().toISOString().split("T")[0])
       // Recargar historial
       const hist = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
       const histJson = await hist.json()
@@ -602,7 +608,21 @@ export function AdminClient() {
               disabled={whitelistAdding}
             />
             <p className="text-xs text-muted-foreground">
-              Nota: Puedes incluir el código de país con el signo +, espacios o guiones. El sistema lo limpiará automáticamente.
+              Puedes incluir el código de país con +, espacios o guiones. El sistema lo limpiará automáticamente.
+            </p>
+          </div>
+
+          {/* Fecha de ingreso al grupo */}
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-foreground">Fecha de ingreso al grupo</p>
+            <Input
+              type="date"
+              value={whitelistDate}
+              onChange={(e) => setWhitelistDate(e.target.value)}
+              disabled={whitelistAdding}
+            />
+            <p className="text-xs text-muted-foreground">
+              Si se deja vacía, se usará la fecha de hoy. Determina la insignia del miembro.
             </p>
           </div>
 
@@ -643,23 +663,13 @@ export function AdminClient() {
             </div>
           )}
 
-          {/* Input oculto para selección de archivo CSV */}
-          <input
-            ref={csvInputRef}
-            type="file"
-            accept=".csv,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) handleCsvImport(file)
-            }}
-          />
+          {/* Input de carga masiva — desactivado; botones ocultos más abajo */}
 
           <div className="flex gap-2 flex-wrap">
             <Button
               size="sm"
               className="flex-1 font-semibold"
-              disabled={whitelistAdding || csvImporting || syncRunning || whitelistPhone.trim() === ""}
+              disabled={whitelistAdding || whitelistPhone.trim() === ""}
               onClick={handleAddWhitelist}
             >
               {whitelistAdding ? (
@@ -668,36 +678,8 @@ export function AdminClient() {
                 <><Plus className="h-4 w-4 mr-2" />Agregar Número</>
               )}
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="font-semibold"
-              disabled={csvImporting || whitelistAdding || syncRunning}
-              onClick={() => {
-                setCsvError(null)
-                setCsvResult(null)
-                csvInputRef.current?.click()
-              }}
-            >
-              {csvImporting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando…</>
-              ) : (
-                <><Upload className="h-4 w-4 mr-2" />Importar CSV</>
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="font-semibold"
-              disabled={syncRunning || csvImporting || whitelistAdding}
-              onClick={handleSync}
-            >
-              {syncRunning ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sincronizando…</>
-              ) : (
-                <><RefreshCw className="h-4 w-4 mr-2" />Sincronizar Directorio</>
-              )}
-            </Button>
+            {/* Botones de carga masiva — ocultos; ya cumplieron su propósito */}
+            {/* Importar CSV | Sincronizar Directorio */}
           </div>
         </div>
 

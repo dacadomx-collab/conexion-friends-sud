@@ -120,6 +120,8 @@ export function DashboardClient() {
     }
     try {
       const data: SessionData = JSON.parse(raw)
+      // Usuarios pendientes no pueden acceder al dashboard completo
+      if (data.status === "pending") { router.replace("/pendiente"); return }
       setSession(data)
       setAccountStatus(data.status ?? "active")
 

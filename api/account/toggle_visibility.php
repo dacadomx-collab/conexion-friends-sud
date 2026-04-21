@@ -72,12 +72,13 @@ try {
 
     if ($newStatus === 'inactive') {
         $stmtLog = $pdo->prepare(
-            'INSERT INTO user_departures_log (user_name, action, reason) VALUES (:user_name, :action, :reason)'
+            'INSERT INTO user_departures_log (user_name, action, reason, acted_by) VALUES (:user_name, :action, :reason, :acted_by)'
         );
         $stmtLog->execute([
             ':user_name' => $userName,
             ':action'    => 'hidden',
             ':reason'    => ($reason !== null && $reason !== '') ? $reason : null,
+            ':acted_by'  => 'self',
         ]);
     } else {
         // Eliminar la entrada 'hidden' más reciente de este usuario (reactivación)

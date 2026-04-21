@@ -49,7 +49,7 @@ try {
     }
 
     $stmt = $pdo->query(
-        'SELECT id, user_name, action, reason, created_at
+        'SELECT id, user_name, action, reason, acted_by, admin_name, created_at
          FROM   user_departures_log
          ORDER  BY created_at DESC'
     );
@@ -62,7 +62,9 @@ try {
             'id'        => (int)    $r['id'],
             'userName'  => (string) $r['user_name'],
             'action'    => (string) $r['action'],
-            'reason'    => !empty($r['reason']) ? (string) $r['reason'] : null,
+            'reason'    => !empty($r['reason'])     ? (string) $r['reason']     : null,
+            'actedBy'   => !empty($r['acted_by'])   ? (string) $r['acted_by']   : 'self',
+            'adminName' => !empty($r['admin_name']) ? (string) $r['admin_name'] : null,
             'createdAt' => (string) $r['created_at'],
         ];
     }

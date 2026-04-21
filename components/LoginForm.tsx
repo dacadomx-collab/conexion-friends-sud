@@ -18,9 +18,11 @@ import { API_BASE_URL } from "@/lib/api"
 // Tipos
 // ---------------------------------------------------------------------------
 interface LoginSuccessData {
-  id: number
+  id:      number
   fullName: string
-  email: string
+  email:   string
+  role?:   string
+  status?: string
 }
 
 interface ApiResponse {
@@ -81,12 +83,16 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
       if (result.status === "success") {
         const userData = result.data as LoginSuccessData
 
-        // Persistir sesión: id, fullName, email — nunca datos sensibles
+        // Persistir sesión completa (role, status incluidos) — nunca datos sensibles
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(userData))
 
         onSuccess?.(userData)
-        // Redirigir siempre al dashboard. redirectTo permite sobrescribir el destino.
-        router.push(redirectTo ?? "/dashboard")
+        // Usuarios pendientes de aprobación van a /pendiente para completar onboarding
+        if (userData.status === "pending") {
+          router.push("/pendiente")
+        } else {
+          router.push(redirectTo ?? "/dashboard")
+        }
       } else {
         setApiError(result.message)
       }

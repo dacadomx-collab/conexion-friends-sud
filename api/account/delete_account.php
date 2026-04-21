@@ -4,11 +4,10 @@
 // =============================================================================
 // Método : POST (JSON body)
 // Body   : { "userId": int }
-// Proceso: 1. Guarda nombre en user_departures_log (action='deleted').
+// Proceso: 1. Guarda nombre en user_departures_log (action='deleted', acted_by='self').
 //          2. Borrado en cascada manual:
 //             social_networks → profile_photos (+ unlink físico) → profiles →
-//             invitation_password_log → whitelist_audit_log → daily_scriptures →
-//             users
+//             invitation_password_log → daily_scriptures → users
 // Returns: { "status": "success", "message": string }
 //          { "status": "error",   "message": string }
 // =============================================================================
@@ -79,9 +78,9 @@ try {
 
     // ── Auditoría DENTRO de la transacción ────────────────────────────────────
     $stmtLog = $pdo->prepare(
-        'INSERT INTO user_departures_log (user_name, action) VALUES (:user_name, :action)'
+        'INSERT INTO user_departures_log (user_name, action, acted_by) VALUES (:user_name, :action, :acted_by)'
     );
-    $stmtLog->execute([':user_name' => $userName, ':action' => 'deleted']);
+    $stmtLog->execute([':user_name' => $userName, ':action' => 'deleted', ':acted_by' => 'self']);
 
     // ── Borrado en cascada manual ─────────────────────────────────────────────
 
@@ -103,9 +102,6 @@ try {
 
     // 5. Tablas admin con FK → users.id (por si el usuario era admin)
     $pdo->prepare('DELETE FROM invitation_password_log WHERE admin_id = :id')
-        ->execute([':id' => $userId]);
-
-    $pdo->prepare('DELETE FROM whitelist_audit_log WHERE admin_id = :id')
         ->execute([':id' => $userId]);
 
     // 6. Usuario (disparador final)

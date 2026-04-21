@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -18,11 +18,11 @@ import {
   ChevronRight,
   EyeOff,
   UserX,
-  PhoneCall,
-  Plus,
   List,
-  Upload,
-  RefreshCw,
+  Clock,
+  UserPlus,
+  BookOpen,
+  Trash2,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -44,7 +44,7 @@ import { InvitationPasswordAdmin } from "@/components/InvitationPasswordAdmin"
 
 // ---------------------------------------------------------------------------
 const CFS_SESSION_KEY = "cfs_session"
-const PAGE_SIZE       = 10   // Máximo de usuarios por página
+const PAGE_SIZE       = 10
 
 interface SessionData {
   id:       number
@@ -67,14 +67,9 @@ interface DepartureEntry {
   userName:  string
   action:    "hidden" | "deleted"
   reason:    string | null
+  actedBy:   "self" | "admin"
+  adminName: string | null
   createdAt: string
-}
-
-interface WhitelistEntry {
-  phone:       string
-  isUsed:      boolean
-  addedByName: string | null
-  createdAt:   string
 }
 
 interface UserDraft {
@@ -84,6 +79,25 @@ interface UserDraft {
   saving:        boolean
   error:         string | null
   saved:         boolean
+}
+
+interface PendingUser {
+  id:        number
+  fullName:  string
+  email:     string
+  phone:     string
+  createdAt: string
+}
+
+interface WelcomeEntry {
+  id:           number
+  userId:       number
+  userName:     string
+  userEmail:    string
+  userPhone:    string
+  adminId:      number
+  adminName:    string
+  authorizedAt: string
 }
 
 // ---------------------------------------------------------------------------
@@ -96,18 +110,21 @@ const STATUS_LABELS: Record<string, string> = {
   active:   "Activo",
   inactive: "Inactivo",
   blocked:  "Bloqueado",
+  pending:  "Pendiente",
 }
 
 const STATUS_DOT: Record<string, string> = {
   active:   "bg-emerald-500",
   inactive: "bg-muted-foreground",
   blocked:  "bg-destructive",
+  pending:  "bg-amber-400",
 }
 
 const STATUS_BADGE: Record<string, string> = {
   active:   "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-700",
   inactive: "bg-secondary text-muted-foreground border-border",
   blocked:  "bg-destructive/10 text-destructive border-destructive/30",
+  pending:  "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-700",
 }
 
 const SELECT_CLS =
@@ -149,22 +166,40 @@ export function AdminClient() {
   const [loadingDepartures, setLoadingDepartures] = useState(true)
   const [departuresError,   setDeparturesError]   = useState<string | null>(null)
 
-  // ── Lista Blanca ───────────────────────────────────────────────────────────
-  const [whitelistHistory,     setWhitelistHistory]     = useState<WhitelistEntry[]>([])
-  const [whitelistLoading,     setWhitelistLoading]     = useState(true)
-  const [whitelistPhone,       setWhitelistPhone]       = useState("")
-  const [whitelistDate,        setWhitelistDate]        = useState(() => new Date().toISOString().split("T")[0])
-  const [whitelistAdding,      setWhitelistAdding]      = useState(false)
-  const [whitelistError,       setWhitelistError]       = useState<string | null>(null)
-  const [whitelistSuccess,     setWhitelistSuccess]     = useState<string | null>(null)
-  const [whitelistModalOpen,   setWhitelistModalOpen]   = useState(false)
-  const [csvImporting,         setCsvImporting]         = useState(false)
-  const [csvResult,            setCsvResult]            = useState<string | null>(null)
-  const [csvError,             setCsvError]             = useState<string | null>(null)
-  const csvInputRef = useRef<HTMLInputElement>(null)
-  const [syncRunning,          setSyncRunning]          = useState(false)
-  const [syncResult,           setSyncResult]           = useState<string | null>(null)
-  const [syncError,            setSyncError]            = useState<string | null>(null)
+  // ── Pendientes de aprobación ──────────────────────────────────────────────
+  const [pendingUsers,     setPendingUsers]     = useState<PendingUser[]>([])
+  const [loadingPending,   setLoadingPending]   = useState(true)
+  const [pendingError,     setPendingError]     = useState<string | null>(null)
+  const [authorizingId,    setAuthorizingId]    = useState<number | null>(null)
+  const [authorizeError,   setAuthorizeError]   = useState<string | null>(null)
+  const [authorizeSuccess, setAuthorizeSuccess] = useState<string | null>(null)
+
+  // ── Registro de Bienvenida ─────────────────────────────────────────────────
+  const [welcomeRegistry,  setWelcomeRegistry]  = useState<WelcomeEntry[]>([])
+  const [welcomeModalOpen, setWelcomeModalOpen] = useState(false)
+  const [loadingWelcome,   setLoadingWelcome]   = useState(false)
+
+  // ── Modal: todos los usuarios ─────────────────────────────────────────────
+  const [allUsersOpen,  setAllUsersOpen]  = useState(false)
+  // ── Modal: todas las bajas ────────────────────────────────────────────────
+  const [allDepsOpen,   setAllDepsOpen]   = useState(false)
+  // ── Admin delete ──────────────────────────────────────────────────────────
+  const [deletingId,    setDeletingId]    = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
+  const [deleteError,   setDeleteError]   = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!session) return
+    setLoadingPending(true)
+    fetch(`${API_BASE_URL}/api/admin/get_pending_users.php?requesterId=${session.id}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.status === "success") setPendingUsers(json.data ?? [])
+        else setPendingError(json.message ?? "Error al cargar pendientes.")
+      })
+      .catch(() => setPendingError("Error de red al cargar pendientes."))
+      .finally(() => setLoadingPending(false))
+  }, [session])
 
   useEffect(() => {
     if (!session) return
@@ -192,120 +227,74 @@ export function AdminClient() {
       .finally(() => setLoadingDepartures(false))
   }, [session])
 
-  useEffect(() => {
-    if (!session) return
-    setWhitelistLoading(true)
-    fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.status === "success") setWhitelistHistory(json.data ?? [])
-      })
-      .catch(() => {})
-      .finally(() => setWhitelistLoading(false))
-  }, [session])
-
-  async function handleAddWhitelist() {
-    if (!session || whitelistAdding) return
-    setWhitelistError(null)
-    setWhitelistSuccess(null)
-    setWhitelistAdding(true)
+  async function handleAuthorize(targetUserId: number) {
+    if (!session || authorizingId !== null) return
+    setAuthorizeError(null)
+    setAuthorizeSuccess(null)
+    setAuthorizingId(targetUserId)
     try {
-      const res  = await fetch(`${API_BASE_URL}/api/admin/add_whitelist.php`, {
+      const res  = await fetch(`${API_BASE_URL}/api/admin/authorize_user.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          phone:         whitelistPhone,
-          requesterId:   session.id,
-          groupJoinDate: whitelistDate || new Date().toISOString().split("T")[0],
-        }),
+        body:    JSON.stringify({ requesterId: session.id, targetUserId }),
       })
       const json = await res.json()
       if (json.status !== "success") throw new Error(json.message)
-      setWhitelistSuccess(`Número ${json.data.phone} agregado correctamente.`)
-      setWhitelistPhone("")
-      setWhitelistDate(new Date().toISOString().split("T")[0])
-      // Recargar historial
-      const hist = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
-      const histJson = await hist.json()
-      if (histJson.status === "success") setWhitelistHistory(histJson.data ?? [])
-    } catch (err) {
-      setWhitelistError(err instanceof Error ? err.message : "Error desconocido.")
-    } finally {
-      setWhitelistAdding(false)
-    }
-  }
-
-  async function handleCsvImport(file: File) {
-    if (!session || csvImporting) return
-    setCsvError(null)
-    setCsvResult(null)
-    setCsvImporting(true)
-    try {
-      const form = new FormData()
-      form.append("csv", file)
-      form.append("requesterId", String(session.id))
-      const res  = await fetch(`${API_BASE_URL}/api/admin/import_whitelist_csv.php`, {
-        method: "POST",
-        body:   form,
-      })
-      const json = await res.json()
-      if (json.status !== "success") throw new Error(json.message ?? "Error al importar.")
-      const s = json.summary as { inserted: number; updated_profile: number; skipped: number; errors: number }
-      setCsvResult(
-        `CSV importado: ${s.inserted} insertados, ${s.updated_profile} perfiles actualizados, ${s.skipped} omitidos, ${s.errors} errores.`
+      setAuthorizeSuccess(`${json.data?.userName ?? "Usuario"} autorizado correctamente.`)
+      setPendingUsers((prev) => prev.filter((u) => u.id !== targetUserId))
+      setUsers((prev) =>
+        prev.map((u) => u.id === targetUserId ? { ...u, status: "active" } : u)
       )
-      // Recargar historial
-      const hist     = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
-      const histJson = await hist.json()
-      if (histJson.status === "success") setWhitelistHistory(histJson.data ?? [])
     } catch (err) {
-      setCsvError(err instanceof Error ? err.message : "Error desconocido al importar CSV.")
+      setAuthorizeError(err instanceof Error ? err.message : "Error desconocido.")
     } finally {
-      setCsvImporting(false)
-      // Limpiar el input para permitir subir el mismo archivo de nuevo
-      if (csvInputRef.current) csvInputRef.current.value = ""
+      setAuthorizingId(null)
     }
   }
 
-  async function handleSync() {
-    if (!session || syncRunning) return
-    setSyncError(null)
-    setSyncResult(null)
-    setSyncRunning(true)
+  async function handleAdminDelete(targetUserId: number) {
+    if (!session || deletingId !== null) return
+    setDeleteError(null)
+    setDeletingId(targetUserId)
     try {
-      const res  = await fetch(`${API_BASE_URL}/api/admin/sync_existing_users.php`, {
+      const res  = await fetch(`${API_BASE_URL}/api/admin/delete_user_admin.php`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ requesterId: session.id }),
+        body:    JSON.stringify({ requesterId: session.id, targetUserId }),
       })
       const json = await res.json()
-      if (json.status !== "success") throw new Error(json.message ?? json.debug ?? "Error al sincronizar.")
-      setSyncResult(
-        `${json.synced} perfil${json.synced !== 1 ? "es" : ""} actualizado${json.synced !== 1 ? "s" : ""} con insignias` +
-        (json.skippedNoMatch > 0 ? ` · ${json.skippedNoMatch} sin coincidencia` : "") +
-        (json.errors > 0 ? ` · ${json.errors} errores` : "") + "."
-      )
-      // Recargar historial para reflejar is_used actualizado
-      const hist     = await fetch(`${API_BASE_URL}/api/admin/get_whitelist_history.php?requesterId=${session.id}`)
-      const histJson = await hist.json()
-      if (histJson.status === "success") setWhitelistHistory(histJson.data ?? [])
+      if (json.status !== "success") throw new Error(json.message)
+      setUsers((prev) => prev.filter((u) => u.id !== targetUserId))
+      setDeleteConfirm(null)
     } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Error desconocido al sincronizar.")
+      setDeleteError(err instanceof Error ? err.message : "Error desconocido.")
     } finally {
-      setSyncRunning(false)
+      setDeletingId(null)
     }
+  }
+
+  async function handleOpenWelcome() {
+    if (!session) return
+    setWelcomeModalOpen(true)
+    if (welcomeRegistry.length > 0) return
+    setLoadingWelcome(true)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/admin/get_welcome_registry.php?requesterId=${session.id}`)
+      const json = await res.json()
+      if (json.status === "success") setWelcomeRegistry(json.data ?? [])
+    } catch { /* error silencioso */ }
+    finally { setLoadingWelcome(false) }
   }
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
-  // hidden  = usuarios con status='inactive' (ya en memoria desde get_users_admin)
-  // deleted = entradas action='deleted' en departures (ya en memoria desde get_departures)
   const kpis = useMemo(() => ({
     total:   users.length,
     active:  users.filter((u) => u.status === "active").length,
     admins:  users.filter((u) => u.role === "admin").length,
     hidden:  users.filter((u) => u.status === "inactive").length,
     deleted: departures.filter((d) => d.action === "deleted").length,
-  }), [users, departures])
+    pending: pendingUsers.length,
+  }), [users, departures, pendingUsers])
 
   // ── Panel de Admins (toggle) ───────────────────────────────────────────────
   const [showAdmins, setShowAdmins] = useState(false)
@@ -346,8 +335,6 @@ export function AdminClient() {
 
   // ── Paginación ─────────────────────────────────────────────────────────────
   const [currentPage, setCurrentPage] = useState(1)
-
-  // Resetear a página 1 cada vez que cambia la búsqueda
   useEffect(() => { setCurrentPage(1) }, [query])
 
   const totalPages = useMemo(
@@ -362,8 +349,6 @@ export function AdminClient() {
 
   // ── Accordion: fila expandida actualmente ─────────────────────────────────
   const [openId, setOpenId] = useState<number | null>(null)
-
-  // Cerrar el accordion abierto si cambia de página (evita desorientación)
   useEffect(() => { setOpenId(null) }, [currentPage])
 
   // ── Scroll suave a sección de Bajas ───────────────────────────────────────
@@ -450,11 +435,11 @@ export function AdminClient() {
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
 
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 1 — KPI Cards (siempre arriba)
+            BLOQUE 1 — KPI Cards
         ══════════════════════════════════════════════════════════════════ */}
         {!loadingList && !loadError && (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
 
               {/* Total miembros */}
               <Card className="border border-border/60 shadow-sm">
@@ -474,7 +459,7 @@ export function AdminClient() {
                 </CardContent>
               </Card>
 
-              {/* Admins — clickeable → despliega panel de administradores */}
+              {/* Admins */}
               <button
                 type="button"
                 onClick={() => setShowAdmins((prev) => !prev)}
@@ -496,7 +481,7 @@ export function AdminClient() {
                 </Card>
               </button>
 
-              {/* Cuentas ocultas — clickeable → scroll a Bajas */}
+              {/* Cuentas ocultas */}
               <button
                 type="button"
                 onClick={scrollToBajas}
@@ -512,7 +497,7 @@ export function AdminClient() {
                 </Card>
               </button>
 
-              {/* Bajas definitivas — clickeable → scroll a Bajas */}
+              {/* Bajas definitivas */}
               <button
                 type="button"
                 onClick={scrollToBajas}
@@ -524,6 +509,29 @@ export function AdminClient() {
                     <UserX className="h-4 w-4 text-destructive/70" />
                     <p className="text-2xl font-bold text-destructive leading-none">{kpis.deleted}</p>
                     <p className="text-xs text-muted-foreground text-center">Eliminados</p>
+                  </CardContent>
+                </Card>
+              </button>
+
+              {/* Pendientes */}
+              <button
+                type="button"
+                onClick={() => document.getElementById("seccion-pendientes")?.scrollIntoView({ behavior: "smooth" })}
+                className="text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-xl"
+                aria-label="Ver pendientes de aprobación"
+              >
+                <Card className={[
+                  "border shadow-sm hover:shadow-md transition-all cursor-pointer h-full",
+                  kpis.pending > 0
+                    ? "border-amber-300 dark:border-amber-700 hover:border-amber-400 dark:hover:border-amber-600"
+                    : "border-border/60 hover:border-border",
+                ].join(" ")}>
+                  <CardContent className="px-3 py-3 flex flex-col items-center gap-1">
+                    <Clock className={`h-4 w-4 ${kpis.pending > 0 ? "text-amber-500 dark:text-amber-400" : "text-muted-foreground"}`} />
+                    <p className={`text-2xl font-bold leading-none ${kpis.pending > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                      {kpis.pending}
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center">Pendientes</p>
                   </CardContent>
                 </Card>
               </button>
@@ -569,236 +577,188 @@ export function AdminClient() {
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 2 — Contraseña de Invitación Master (en medio)
+            BLOQUE 2 — Contraseña de Invitación Master
         ══════════════════════════════════════════════════════════════════ */}
         <div className="border-t border-border/60 pt-2" />
         <InvitationPasswordAdmin adminId={session.id} />
 
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 3 — Gestión de Lista Blanca (Acceso)
+            BLOQUE 2b — Pendientes de Aprobación
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="border-t border-border/60 pt-2" />
+        <div id="seccion-pendientes" className="border-t border-border/60 pt-2 scroll-mt-20" />
 
         <div className="flex items-center gap-2">
-          <PhoneCall className="h-5 w-5 text-primary shrink-0" />
-          <h2 className="font-bold text-foreground text-base">Gestión de Lista Blanca (Acceso)</h2>
-          {!whitelistLoading && (
-            <button
-              type="button"
-              onClick={() => setWhitelistModalOpen(true)}
-              className="ml-auto flex items-center gap-1.5 text-xs text-primary hover:underline focus-visible:outline-none"
-            >
-              <List className="h-3.5 w-3.5" />
-              Ver todos los registros
-            </button>
+          <Clock className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0" />
+          <h2 className="font-bold text-foreground text-base">Pendientes de Aprobación</h2>
+          {!loadingPending && (
+            <span className={`ml-auto text-xs tabular-nums font-medium ${pendingUsers.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+              {pendingUsers.length} pendiente{pendingUsers.length !== 1 ? "s" : ""}
+            </span>
           )}
+          <button
+            type="button"
+            onClick={handleOpenWelcome}
+            className="flex items-center gap-1.5 text-xs text-primary hover:underline focus-visible:outline-none ml-2"
+            title="Ver historial completo de aprobaciones"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Registro de Bienvenida
+          </button>
         </div>
 
-        {/* Formulario de ingreso */}
-        <div className="rounded-xl border border-border/60 bg-stone-50 dark:bg-stone-900 px-4 py-4 space-y-3">
-          <div className="space-y-1.5">
-            <Input
-              placeholder="Ej. +52 555 123 4567"
-              value={whitelistPhone}
-              onChange={(e) => {
-                setWhitelistPhone(e.target.value)
-                setWhitelistError(null)
-                setWhitelistSuccess(null)
-              }}
-              disabled={whitelistAdding}
-            />
-            <p className="text-xs text-muted-foreground">
-              Puedes incluir el código de país con +, espacios o guiones. El sistema lo limpiará automáticamente.
-            </p>
+        {authorizeError && (
+          <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            {authorizeError}
           </div>
-
-          {/* Fecha de ingreso al grupo */}
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-foreground">Fecha de ingreso al grupo</p>
-            <Input
-              type="date"
-              value={whitelistDate}
-              onChange={(e) => setWhitelistDate(e.target.value)}
-              disabled={whitelistAdding}
-            />
-            <p className="text-xs text-muted-foreground">
-              Si se deja vacía, se usará la fecha de hoy. Determina la insignia del miembro.
-            </p>
-          </div>
-
-          {whitelistError && (
-            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
-              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              {whitelistError}
-            </div>
-          )}
-          {whitelistSuccess && (
-            <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              {whitelistSuccess}
-            </div>
-          )}
-          {csvError && (
-            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
-              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              {csvError}
-            </div>
-          )}
-          {csvResult && (
-            <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              {csvResult}
-            </div>
-          )}
-          {syncError && (
-            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
-              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              {syncError}
-            </div>
-          )}
-          {syncResult && (
-            <div className="flex items-start gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              {syncResult}
-            </div>
-          )}
-
-          {/* Input de carga masiva — desactivado; botones ocultos más abajo */}
-
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              size="sm"
-              className="flex-1 font-semibold"
-              disabled={whitelistAdding || whitelistPhone.trim() === ""}
-              onClick={handleAddWhitelist}
-            >
-              {whitelistAdding ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Agregando…</>
-              ) : (
-                <><Plus className="h-4 w-4 mr-2" />Agregar Número</>
-              )}
-            </Button>
-            {/* Botones de carga masiva — ocultos; ya cumplieron su propósito */}
-            {/* Importar CSV | Sincronizar Directorio */}
-          </div>
-        </div>
-
-        {/* Historial reciente — últimos 5 */}
-        {whitelistLoading ? (
-          <div className="flex justify-center items-center gap-2 py-6 text-muted-foreground text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando historial…
-          </div>
-        ) : whitelistHistory.length === 0 ? (
-          <p className="text-center text-xs text-muted-foreground py-4">Sin números en la lista blanca aún.</p>
-        ) : (
-          <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-secondary/40 border-b border-border/60">
-                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Número</th>
-                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground hidden sm:table-cell">Agregado por</th>
-                  <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Fecha</th>
-                  <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Usado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {whitelistHistory.slice(0, 5).map((entry) => (
-                  <tr key={entry.phone} className="bg-background hover:bg-secondary/20 transition-colors">
-                    <td className="px-3 py-2 font-mono text-foreground">{entry.phone}</td>
-                    <td className="px-3 py-2 text-muted-foreground hidden sm:table-cell">
-                      {entry.addedByName ?? <span className="italic">—</span>}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground tabular-nums">
-                      {new Date(entry.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      {entry.isUsed ? (
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Utilizado" />
-                      ) : (
-                        <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/40" title="Disponible" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        )}
+        {authorizeSuccess && (
+          <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            {authorizeSuccess}
           </div>
         )}
 
-        {/* Modal: Ver todos los registros */}
-        <Dialog open={whitelistModalOpen} onOpenChange={setWhitelistModalOpen}>
+        {loadingPending ? (
+          <div className="flex justify-center items-center gap-2 py-8 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Cargando pendientes…
+          </div>
+        ) : pendingError ? (
+          <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {pendingError}
+          </div>
+        ) : pendingUsers.length === 0 ? (
+          <div className="rounded-xl border border-border/60 bg-stone-50 dark:bg-stone-900 px-4 py-6 text-center">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+            <p className="text-sm font-medium text-foreground">Sin pendientes</p>
+            <p className="text-xs text-muted-foreground mt-0.5">No hay nuevos miembros esperando aprobación.</p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden shadow-sm divide-y divide-border/60">
+            <div className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-[1fr_1fr_1fr_auto] bg-amber-50/60 dark:bg-amber-950/20 px-3 py-2 border-b border-amber-200 dark:border-amber-800">
+              <span className="text-xs font-semibold text-muted-foreground">Nombre</span>
+              <span className="text-xs font-semibold text-muted-foreground hidden sm:block">Correo</span>
+              <span className="text-xs font-semibold text-muted-foreground">Registro</span>
+              <span className="text-xs font-semibold text-muted-foreground text-right">Acción</span>
+            </div>
+            {pendingUsers.map((pUser) => {
+              const isAuthorizing = authorizingId === pUser.id
+              const [dd, mm, yyyy] = [
+                new Date(pUser.createdAt).toLocaleDateString("es-MX", { day: "2-digit" }),
+                new Date(pUser.createdAt).toLocaleDateString("es-MX", { month: "2-digit" }),
+                new Date(pUser.createdAt).toLocaleDateString("es-MX", { year: "numeric" }),
+              ]
+              return (
+                <div
+                  key={pUser.id}
+                  className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-[1fr_1fr_1fr_auto] items-center gap-2 px-3 py-3 bg-background hover:bg-secondary/20 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate leading-tight">{pUser.fullName}</p>
+                    <p className="text-xs text-muted-foreground truncate sm:hidden">{pUser.email}</p>
+                    <p className="text-xs font-mono text-muted-foreground mt-0.5">{pUser.phone}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate hidden sm:block">{pUser.email}</p>
+                  <p className="text-xs text-muted-foreground tabular-nums">{dd}-{mm}-{yyyy}</p>
+                  <button
+                    type="button"
+                    onClick={() => handleAuthorize(pUser.id)}
+                    disabled={isAuthorizing || authorizingId !== null}
+                    className={[
+                      "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isAuthorizing || authorizingId !== null
+                        ? "bg-secondary text-muted-foreground cursor-not-allowed"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow",
+                    ].join(" ")}
+                    aria-label={`Autorizar a ${pUser.fullName}`}
+                  >
+                    {isAuthorizing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-3.5 w-3.5" />
+                    )}
+                    {isAuthorizing ? "…" : "Autorizar"}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Modal: Registro de Bienvenida */}
+        <Dialog open={welcomeModalOpen} onOpenChange={setWelcomeModalOpen}>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base">
-                <PhoneCall className="h-4 w-4 text-primary" />
-                Historial completo — Lista Blanca
+                <BookOpen className="h-4 w-4 text-primary" />
+                Registro de Bienvenida — Historial de Aprobaciones
               </DialogTitle>
             </DialogHeader>
-            {whitelistHistory.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">Sin registros.</p>
+            {loadingWelcome ? (
+              <div className="flex justify-center items-center gap-2 py-10 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cargando historial…
+              </div>
+            ) : welcomeRegistry.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-10">
+                Sin aprobaciones registradas aún.
+              </p>
             ) : (
-              <table className="w-full text-xs mt-2">
-                <thead>
-                  <tr className="bg-secondary/40 border-b border-border/60">
-                    <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Número</th>
-                    <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Agregado por</th>
-                    <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Fecha</th>
-                    <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Usado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {whitelistHistory.map((entry) => (
-                    <tr key={entry.phone} className="bg-background hover:bg-secondary/20 transition-colors">
-                      <td className="px-3 py-2 font-mono text-foreground">{entry.phone}</td>
-                      <td className="px-3 py-2 text-muted-foreground">
-                        {entry.addedByName ?? <span className="italic">—</span>}
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground tabular-nums">
-                        {new Date(entry.createdAt).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        {entry.isUsed ? (
-                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-700">
-                            Utilizado
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] bg-secondary text-muted-foreground">
-                            Disponible
-                          </Badge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="mt-2 space-y-2">
+                {welcomeRegistry.map((entry) => {
+                  const date = new Date(entry.authorizedAt)
+                  const formatted = `${String(date.getDate()).padStart(2,"0")}-${String(date.getMonth()+1).padStart(2,"0")}-${date.getFullYear()} ${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}`
+                  return (
+                    <div
+                      key={entry.id}
+                      className="rounded-lg border border-border/60 bg-secondary/10 px-3 py-2.5 flex items-start gap-3"
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5">
+                        <UserPlus className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground leading-tight truncate">
+                          {entry.userName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{entry.userEmail} · {entry.userPhone}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Autorizado por <span className="font-medium text-foreground">{entry.adminName}</span>
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0 text-right">
+                        {formatted}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </DialogContent>
         </Dialog>
 
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 4 — Lista de Usuarios Registrados (abajo)
+            BLOQUE 4 — Usuarios Registrados (últimos 5 + modal completo)
         ══════════════════════════════════════════════════════════════════ */}
         <div className="border-t border-border/60 pt-2" />
 
-        {/* Cabecera de la sección */}
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-primary shrink-0" />
           <h2 className="font-bold text-foreground text-base">Usuarios Registrados</h2>
+          {!loadingList && !loadError && (
+            <button
+              type="button"
+              onClick={() => setAllUsersOpen(true)}
+              className="ml-auto flex items-center gap-1.5 text-xs text-primary hover:underline focus-visible:outline-none"
+            >
+              <List className="h-3.5 w-3.5" />
+              Ver a todos los hermanos
+            </button>
+          )}
         </div>
 
-        {/* ── Buscador ── */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Buscar por nombre o correo…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        {/* ── Estado de carga / error / vacío ── */}
         {loadingList ? (
           <div className="flex justify-center items-center gap-2 py-12 text-muted-foreground text-sm">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -809,218 +769,309 @@ export function AdminClient() {
             <AlertTriangle className="h-4 w-4 shrink-0" />
             {loadError}
           </div>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-10">
-            No se encontraron usuarios{query ? ` para "${query}"` : ""}.
-          </p>
+        ) : users.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-10">Sin usuarios registrados.</p>
         ) : (
-          <>
-            {/* ── Lista colapsable — solo la página actual ── */}
-            <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
-              {paginated.map((user) => {
-                const draft   = drafts[user.id]
-                if (!draft) return null
-
-                const isOpen  = openId === user.id
-                const isDirty =
-                  draft.role          !== user.role          ||
-                  draft.status        !== user.status        ||
-                  draft.groupJoinDate !== user.groupJoinDate
-
-                return (
-                  <Collapsible
-                    key={user.id}
-                    open={isOpen}
-                    onOpenChange={(open) => setOpenId(open ? user.id : null)}
-                  >
-                    {/* ── Fila compacta (trigger) ── */}
-                    <CollapsibleTrigger asChild>
-                      <button
-                        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-background hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                        aria-label={`Editar ${user.fullName}`}
-                      >
-                        {/* Status dot */}
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[user.status] ?? "bg-muted-foreground"}`}
-                          aria-hidden="true"
-                        />
-
-                        {/* ID */}
-                        <span className="text-xs text-muted-foreground w-8 shrink-0 tabular-nums">
-                          #{user.id}
-                        </span>
-
-                        {/* Nombre + email */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate leading-tight">
-                            {user.fullName}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </p>
-                        </div>
-
-                        {/* Status badge — solo en sm+ */}
-                        <Badge
-                          variant="outline"
-                          className={`hidden sm:inline-flex text-xs shrink-0 border ${STATUS_BADGE[user.status] ?? STATUS_BADGE.inactive}`}
-                        >
-                          {STATUS_LABELS[user.status] ?? user.status}
-                        </Badge>
-
-                        {/* Indicador de cambios pendientes */}
-                        {isDirty && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-label="Cambios sin guardar" />
-                        )}
-
-                        {/* Chevron */}
-                        <ChevronDown
-                          className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                    </CollapsibleTrigger>
-
-                    {/* ── Panel de edición expandido ── */}
-                    <CollapsibleContent>
-                      <div className="px-4 pb-4 pt-3 bg-secondary/20 border-t border-border/40 space-y-3">
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-                          {/* Rol */}
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Rol</label>
-                            <select
-                              value={draft.role}
-                              onChange={(e) => patchDraft(user.id, { role: e.target.value, error: null, saved: false })}
-                              disabled={draft.saving || session.id === user.id}
-                              className={SELECT_CLS}
-                            >
-                              {Object.entries(ROLE_LABELS).map(([val, label]) => (
-                                <option key={val} value={val}>{label}</option>
-                              ))}
-                            </select>
-                            {session.id === user.id && (
-                              <p className="text-xs text-muted-foreground">No puedes cambiar tu propio rol.</p>
-                            )}
-                          </div>
-
-                          {/* Estatus */}
-                          <div className="space-y-1">
-                            <label className="text-xs font-medium text-muted-foreground">Estatus</label>
-                            <select
-                              value={draft.status}
-                              onChange={(e) => patchDraft(user.id, { status: e.target.value, error: null, saved: false })}
-                              disabled={draft.saving}
-                              className={SELECT_CLS}
-                            >
-                              {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                                <option key={val} value={val}>{label}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                        </div>
-
-                        {/* Fecha de ingreso */}
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-muted-foreground">
-                            Fecha de ingreso al grupo
-                          </label>
-                          <Input
-                            type="date"
-                            value={draft.groupJoinDate}
-                            onChange={(e) => patchDraft(user.id, { groupJoinDate: e.target.value, error: null, saved: false })}
-                            disabled={draft.saving}
-                          />
-                        </div>
-
-                        {/* Feedback */}
-                        {draft.error && (
-                          <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
-                            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            {draft.error}
-                          </div>
-                        )}
-                        {draft.saved && (
-                          <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                            Cambios guardados correctamente.
-                          </div>
-                        )}
-
-                        {/* Botón guardar */}
-                        <Button
-                          size="sm"
-                          className="w-full font-semibold"
-                          disabled={draft.saving || !isDirty}
-                          onClick={() => handleSave(user.id)}
-                        >
-                          {draft.saving ? (
-                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando…</>
-                          ) : (
-                            <><Save className="h-4 w-4 mr-2" />{isDirty ? "Guardar Cambios" : "Sin cambios"}</>
-                          )}
-                        </Button>
-
-                      </div>
-                    </CollapsibleContent>
-
-                  </Collapsible>
-                )
-              })}
-            </div>
-
-            {/* ── Barra de paginación ── */}
-            <div className="flex items-center justify-between px-1 pb-2">
-              {/* Conteo contextual */}
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {query
-                  ? `${filtered.length} resultado${filtered.length !== 1 ? "s" : ""} · `
-                  : ""}
-                Página {currentPage} de {totalPages}
-              </p>
-
-              {/* Controles */}
-              <div className="flex items-center gap-2">
-                <Button
+          <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
+            {users.slice(0, 5).map((user) => (
+              <div key={user.id} className="flex items-center gap-3 px-4 py-3 bg-background">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[user.status] ?? "bg-muted-foreground"}`} />
+                <span className="text-xs text-muted-foreground w-8 shrink-0 tabular-nums">#{user.id}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate leading-tight">{user.fullName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+                <Badge
                   variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => p - 1)}
-                  aria-label="Página anterior"
+                  className={`hidden sm:inline-flex text-xs shrink-0 border ${STATUS_BADGE[user.status] ?? STATUS_BADGE.inactive}`}
                 >
-                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 text-xs"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => p + 1)}
-                  aria-label="Página siguiente"
-                >
-                  Siguiente
-                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                </Button>
+                  {STATUS_LABELS[user.status] ?? user.status}
+                </Badge>
               </div>
-            </div>
-          </>
+            ))}
+          </div>
         )}
 
+        {/* Modal: Gestión completa de hermanos */}
+        <Dialog
+          open={allUsersOpen}
+          onOpenChange={(open) => {
+            setAllUsersOpen(open)
+            if (!open) { setDeleteConfirm(null); setDeleteError(null) }
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4 text-primary" />
+                Gestión de Hermanos
+              </DialogTitle>
+            </DialogHeader>
+
+            {deleteError && (
+              <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive mt-2">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                {deleteError}
+              </div>
+            )}
+
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Buscar por nombre o correo…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-10">
+                No se encontraron usuarios{query ? ` para "${query}"` : ""}.
+              </p>
+            ) : (
+              <>
+                <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60 mt-3">
+                  {paginated.map((user) => {
+                    const draft = drafts[user.id]
+                    if (!draft) return null
+
+                    const isOpen  = openId === user.id
+                    const isDirty =
+                      draft.role          !== user.role          ||
+                      draft.status        !== user.status        ||
+                      draft.groupJoinDate !== user.groupJoinDate
+                    const isConfirmingDelete = deleteConfirm === user.id
+
+                    return (
+                      <Collapsible
+                        key={user.id}
+                        open={isOpen}
+                        onOpenChange={(open) => setOpenId(open ? user.id : null)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <button
+                            className="w-full flex items-center gap-3 px-4 py-3 text-left bg-background hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                            aria-label={`Editar ${user.fullName}`}
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[user.status] ?? "bg-muted-foreground"}`}
+                              aria-hidden="true"
+                            />
+                            <span className="text-xs text-muted-foreground w-8 shrink-0 tabular-nums">
+                              #{user.id}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate leading-tight">
+                                {user.fullName}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {user.email}
+                              </p>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={`hidden sm:inline-flex text-xs shrink-0 border ${STATUS_BADGE[user.status] ?? STATUS_BADGE.inactive}`}
+                            >
+                              {STATUS_LABELS[user.status] ?? user.status}
+                            </Badge>
+                            {isDirty && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" aria-label="Cambios sin guardar" />
+                            )}
+                            <ChevronDown
+                              className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        </CollapsibleTrigger>
+
+                        <CollapsibleContent>
+                          <div className="px-4 pb-4 pt-3 bg-secondary/20 border-t border-border/40 space-y-3">
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Rol</label>
+                                <select
+                                  value={draft.role}
+                                  onChange={(e) => patchDraft(user.id, { role: e.target.value, error: null, saved: false })}
+                                  disabled={draft.saving || session.id === user.id}
+                                  className={SELECT_CLS}
+                                >
+                                  {Object.entries(ROLE_LABELS).map(([val, label]) => (
+                                    <option key={val} value={val}>{label}</option>
+                                  ))}
+                                </select>
+                                {session.id === user.id && (
+                                  <p className="text-xs text-muted-foreground">No puedes cambiar tu propio rol.</p>
+                                )}
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Estatus</label>
+                                <select
+                                  value={draft.status}
+                                  onChange={(e) => patchDraft(user.id, { status: e.target.value, error: null, saved: false })}
+                                  disabled={draft.saving}
+                                  className={SELECT_CLS}
+                                >
+                                  {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                                    <option key={val} value={val}>{label}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-muted-foreground">
+                                Fecha de ingreso al grupo
+                              </label>
+                              <Input
+                                type="date"
+                                value={draft.groupJoinDate}
+                                onChange={(e) => patchDraft(user.id, { groupJoinDate: e.target.value, error: null, saved: false })}
+                                disabled={draft.saving}
+                              />
+                            </div>
+
+                            {draft.error && (
+                              <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+                                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{draft.error}
+                              </div>
+                            )}
+                            {draft.saved && (
+                              <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-700 dark:text-emerald-400">
+                                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                Cambios guardados correctamente.
+                              </div>
+                            )}
+
+                            <Button
+                              size="sm"
+                              className="w-full font-semibold"
+                              disabled={draft.saving || !isDirty}
+                              onClick={() => handleSave(user.id)}
+                            >
+                              {draft.saving ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Guardando…</>
+                              ) : (
+                                <><Save className="h-4 w-4 mr-2" />{isDirty ? "Guardar Cambios" : "Sin cambios"}</>
+                              )}
+                            </Button>
+
+                            {/* Zona de eliminación — solo para cuentas distintas a la propia */}
+                            {session.id !== user.id && (
+                              isConfirmingDelete ? (
+                                <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 space-y-2">
+                                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                    ¿Eliminar cuenta de {user.fullName}?
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Esta acción es permanente e irreversible. Se eliminarán todos sus datos y fotos.
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      className="flex-1 text-xs h-8"
+                                      disabled={deletingId === user.id}
+                                      onClick={() => handleAdminDelete(user.id)}
+                                    >
+                                      {deletingId === user.id ? (
+                                        <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Eliminando…</>
+                                      ) : (
+                                        <><Trash2 className="h-3.5 w-3.5 mr-1.5" />Confirmar eliminación</>
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="flex-1 text-xs h-8"
+                                      disabled={deletingId === user.id}
+                                      onClick={() => { setDeleteConfirm(null); setDeleteError(null) }}
+                                    >
+                                      Cancelar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirm(user.id)}
+                                  className="w-full flex items-center justify-center gap-1.5 text-xs text-destructive/70 hover:text-destructive border border-destructive/20 hover:border-destructive/50 rounded-md py-1.5 transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Eliminar cuenta permanentemente
+                                </button>
+                              )
+                            )}
+
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    )
+                  })}
+                </div>
+
+                {/* Paginación */}
+                <div className="flex items-center justify-between px-1 pb-2 mt-3">
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {query
+                      ? `${filtered.length} resultado${filtered.length !== 1 ? "s" : ""} · `
+                      : ""}
+                    Página {currentPage} de {totalPages}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-xs"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((p) => p - 1)}
+                      aria-label="Página anterior"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 px-3 text-xs"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((p) => p + 1)}
+                      aria-label="Página siguiente"
+                    >
+                      Siguiente
+                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
         {/* ══════════════════════════════════════════════════════════════════
-            BLOQUE 5 — Bajas / Ocultos (registro de auditoría)
+            BLOQUE 5 — Bajas / Ocultos (últimos 5 + modal completo)
         ══════════════════════════════════════════════════════════════════ */}
         <div id="seccion-bajas" className="border-t border-border/60 pt-2 scroll-mt-20" />
 
         <div className="flex items-center gap-2">
           <EyeOff className="h-5 w-5 text-primary shrink-0" />
           <h2 className="font-bold text-foreground text-base">Bajas / Ocultos</h2>
-          {!loadingDepartures && !departuresError && (
-            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-              {departures.length} registro{departures.length !== 1 ? "s" : ""}
-            </span>
+          {!loadingDepartures && !departuresError && departures.length > 0 && (
+            <>
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {departures.length} registro{departures.length !== 1 ? "s" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAllDepsOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-primary hover:underline focus-visible:outline-none ml-2"
+              >
+                <List className="h-3.5 w-3.5" />
+                Ver todos
+              </button>
+            </>
           )}
         </div>
 
@@ -1040,7 +1091,7 @@ export function AdminClient() {
           </p>
         ) : (
           <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60">
-            {departures.map((entry) => (
+            {departures.slice(0, 5).map((entry) => (
               <div key={entry.id} className="flex items-center gap-3 px-4 py-3 bg-background">
                 <div className={[
                   "flex items-center justify-center w-8 h-8 rounded-lg shrink-0",
@@ -1057,11 +1108,11 @@ export function AdminClient() {
                   <p className="text-sm font-medium text-foreground truncate leading-tight">
                     {entry.userName}
                   </p>
-                  {entry.reason && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {entry.reason}
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {entry.actedBy === "admin"
+                      ? `Por: Admin ${entry.adminName ?? ""}`
+                      : "Por: el mismo usuario"}
+                  </p>
                 </div>
 
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -1083,6 +1134,68 @@ export function AdminClient() {
             ))}
           </div>
         )}
+
+        {/* Modal: Historial completo de bajas */}
+        <Dialog open={allDepsOpen} onOpenChange={setAllDepsOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <EyeOff className="h-4 w-4 text-primary" />
+                Historial Completo — Bajas y Ocultos
+              </DialogTitle>
+            </DialogHeader>
+            {departures.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-6">Sin registros.</p>
+            ) : (
+              <div className="rounded-lg border border-border/60 overflow-hidden shadow-sm divide-y divide-border/60 mt-3">
+                {departures.map((entry) => (
+                  <div key={entry.id} className="flex items-center gap-3 px-4 py-3 bg-background hover:bg-secondary/20 transition-colors">
+                    <div className={[
+                      "flex items-center justify-center w-8 h-8 rounded-lg shrink-0",
+                      entry.action === "hidden"
+                        ? "bg-slate-100 dark:bg-slate-800 text-slate-500"
+                        : "bg-destructive/10 text-destructive",
+                    ].join(" ")}>
+                      {entry.action === "hidden"
+                        ? <EyeOff className="h-4 w-4" />
+                        : <UserX className="h-4 w-4" />}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate leading-tight">
+                        {entry.userName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {entry.actedBy === "admin"
+                          ? `Por: Admin ${entry.adminName ?? ""}`
+                          : "Por: el mismo usuario"}
+                      </p>
+                      {entry.reason && (
+                        <p className="text-xs text-muted-foreground truncate">{entry.reason}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={[
+                        "inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border",
+                        entry.action === "hidden"
+                          ? "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                          : "bg-destructive/10 text-destructive border-destructive/30",
+                      ].join(" ")}>
+                        {entry.action === "hidden" ? "Oculto" : "Eliminado"}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {new Date(entry.createdAt).toLocaleDateString("es-MX", {
+                          day: "2-digit", month: "short", year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
       </main>
     </div>

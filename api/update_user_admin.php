@@ -41,7 +41,7 @@ if ($requesterId <= 0 || $targetUserId <= 0) {
 }
 
 $validRoles    = ['admin', 'user'];
-$validStatuses = ['active', 'inactive', 'blocked'];
+$validStatuses = ['active', 'inactive', 'blocked', 'pending'];
 
 if (!in_array($newRole, $validRoles, true)) {
     http_response_code(400);
@@ -72,7 +72,7 @@ try {
     $pdo = $db->getConnection();
 
     // ── Verificar que el solicitante sea admin ────────────────────────────────
-    $stmtRole = $pdo->prepare('SELECT role FROM users WHERE id = :id LIMIT 1');
+    $stmtRole = $pdo->prepare('SELECT role, full_name FROM users WHERE id = :id LIMIT 1');
     $stmtRole->execute([':id' => $requesterId]);
     $requester = $stmtRole->fetch();
 
@@ -89,6 +89,11 @@ try {
         exit;
     }
 
+    // Obtener nombre y estado actual del usuario objetivo para trazabilidad
+    $stmtTarget = $pdo->prepare('SELECT full_name, status FROM users WHERE id = :id LIMIT 1');
+    $stmtTarget->execute([':id' => $targetUserId]);
+    $targetUser = $stmtTarget->fetch();
+
     $pdo->beginTransaction();
 
     // ── Actualizar tabla users ─────────────────────────────────────────────────
@@ -102,6 +107,22 @@ try {
         ':status'   => $newStatus,
         ':targetId' => $targetUserId,
     ]);
+
+    // ── Trazabilidad: loggear cuando admin oculta un usuario ──────────────────
+    // Si el status anterior era active/pending y el nuevo es inactive → baja por admin
+    $prevStatus = $targetUser ? (string) $targetUser['status'] : '';
+    if ($newStatus === 'inactive' && $prevStatus !== 'inactive') {
+        $stmtDep = $pdo->prepare(
+            'INSERT INTO user_departures_log (user_name, action, acted_by, admin_name)
+             VALUES (:user_name, :action, :acted_by, :admin_name)'
+        );
+        $stmtDep->execute([
+            ':user_name'  => $targetUser ? (string) $targetUser['full_name'] : "ID #{$targetUserId}",
+            ':action'     => 'hidden',
+            ':acted_by'   => 'admin',
+            ':admin_name' => (string) $requester['full_name'],
+        ]);
+    }
 
     // ── Actualizar tabla profiles (group_join_date) ───────────────────────────
     if ($joinDate !== null) {

@@ -189,7 +189,15 @@ export function MediaForm({ userId }: MediaFormProps) {
       catch { throw new Error(`Error del servidor (${photosRes.status}): ${photosText.slice(0, 200)}`) }
       if (photosJson.status !== "success") throw new Error(photosJson.message)
 
-      router.push("/dashboard")
+      // Usuarios pendientes van a /pendiente (esperan aprobación del admin)
+      // Usuarios activos van al dashboard normalmente
+      try {
+        const raw = localStorage.getItem("cfs_session")
+        const sessionData = raw ? JSON.parse(raw) : null
+        router.push(sessionData?.status === "pending" ? "/pendiente" : "/dashboard")
+      } catch {
+        router.push("/dashboard")
+      }
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido al guardar.")

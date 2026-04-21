@@ -180,40 +180,6 @@ $db  = new Database();
 $pdo = $db->getConnection();
 
 // -----------------------------------------------------------------------------
-// 8b. VALIDACIÓN DE LISTA BLANCA (whitelist_phones)
-//     El teléfono debe existir en whitelist_phones con is_used = 0.
-//     · No encontrado        → HTTP 403 (número no autorizado)
-//     · is_used = 1          → HTTP 403 (número ya utilizado para otra cuenta)
-//     Esta verificación ocurre antes de la transacción para evitar bloqueos
-//     innecesarios en la tabla users ante teléfonos no autorizados.
-// -----------------------------------------------------------------------------
-$stmtWL = $pdo->prepare(
-    'SELECT is_used FROM whitelist_phones WHERE phone = :phone LIMIT 1'
-);
-$stmtWL->execute([':phone' => $phone]);
-$whitelistEntry = $stmtWL->fetch();
-
-if ($whitelistEntry === false) {
-    http_response_code(403);
-    echo json_encode([
-        'status'  => 'error',
-        'message' => 'Tu número de teléfono no está autorizado para registrarse. Solicita una invitación.',
-        'data'    => [],
-    ]);
-    exit;
-}
-
-if ((int) $whitelistEntry['is_used'] === 1) {
-    http_response_code(403);
-    echo json_encode([
-        'status'  => 'error',
-        'message' => 'Este número de teléfono ya fue utilizado para crear una cuenta.',
-        'data'    => [],
-    ]);
-    exit;
-}
-
-// -----------------------------------------------------------------------------
 // 9. INSERT EN TABLA `users`
 //    Mapeo explícito camelCase (Front) → snake_case (DB) según Codex:
 //
@@ -226,17 +192,21 @@ if ((int) $whitelistEntry['is_used'] === 1) {
 // -----------------------------------------------------------------------------
 try {
     // -------------------------------------------------------------------------
-    // 9. TRANSACCIÓN ATÓMICA — users + profiles + whitelist deben ser atómicos.
-    //    Si cualquier INSERT falla, ningún cambio persiste en la base de datos.
+    // 9. TRANSACCIÓN ATÓMICA — users + profiles deben ser atómicos.
+    //    La Lista Blanca se puebla al momento de la AUTORIZACIÓN del Admin,
+    //    no durante el registro. El único filtro de acceso es la contraseña
+    //    de invitación validada en /acceso (validate_invitation.php).
     // -------------------------------------------------------------------------
     $pdo->beginTransaction();
 
     // 9a. INSERT en tabla `users`
+    //     status = 'pending': el nuevo miembro requiere aprobación del admin
+    //     antes de poder acceder al directorio y funciones completas.
     $stmt = $pdo->prepare("
         INSERT INTO `users`
-            (`full_name`, `email`, `phone`, `birth_date`, `password_hash`, `accepted_code_of_conduct`)
+            (`full_name`, `email`, `phone`, `birth_date`, `password_hash`, `accepted_code_of_conduct`, `status`)
         VALUES
-            (:full_name, :email, :phone, :birth_date, :password_hash, :accepted_code_of_conduct)
+            (:full_name, :email, :phone, :birth_date, :password_hash, :accepted_code_of_conduct, 'pending')
     ");
 
     $stmt->execute([
@@ -262,15 +232,6 @@ try {
         ':user_id' => $newUserId,
         ':gender'  => $gender,
     ]);
-
-    // 9c. Marcar el número como utilizado en la Lista Blanca.
-    //     is_used = 1 impide que el mismo número cree una segunda cuenta.
-    //     Al estar dentro de la transacción, si algo falla el número
-    //     no queda marcado y puede volver a intentar el registro.
-    $stmtMarkUsed = $pdo->prepare(
-        'UPDATE whitelist_phones SET is_used = 1 WHERE phone = :phone'
-    );
-    $stmtMarkUsed->execute([':phone' => $phone]);
 
     $pdo->commit();
 

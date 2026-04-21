@@ -53,6 +53,7 @@
     "id":        "int",
     "fullName":  "string",
     "email":     "string",
+    "status":    "string — siempre 'pending' en el registro inicial",
     "createdAt": "string (YYYY-MM-DD HH:MM:SS)"
   }
 }
@@ -72,6 +73,8 @@
 | 400 | Campo faltante, formato inválido, `acceptedCodeOfConduct !== true` |
 | 409 | Email ya registrado (`SQLSTATE 23000`) |
 | 500 | Error interno de servidor o DB |
+
+> **Flujo de aprobación (Migración 09):** El registro crea el usuario con `status='pending'`. No existe validación previa de lista blanca. El único requisito de acceso es conocer la **Contraseña de Invitación Master** (verificada en `/acceso` → `validate_invitation.php`). Un admin debe hacer clic en "Autorizar" en el Panel para activar la cuenta (`status='active'`). Mientras el usuario está `pending`, el login lo redirige a `/pendiente`.
 
 ---
 
@@ -100,7 +103,7 @@
     "fullName": "string",
     "email":    "string",
     "role":     "string — 'admin' | 'user'",
-    "status":   "string — 'active' | 'inactive' | 'blocked'"
+    "status":   "string — 'active' | 'inactive' | 'blocked' | 'pending'"
   }
 }
 ```
@@ -432,7 +435,7 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
       "fullName":      "string",
       "email":         "string",
       "role":          "string — 'admin' | 'user'",
-      "status":        "string — 'active' | 'inactive' | 'blocked'",
+      "status":        "string — 'active' | 'inactive' | 'blocked' | 'pending'",
       "groupJoinDate": "string — YYYY-MM-DD | ''"
     }
   ]
@@ -452,7 +455,7 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 - **Método:** `POST`
 - **Ruta Completa:** `/api/update_user_admin.php`
 - **Autenticación:** `requesterId` en body JSON — se verifica en BD que sea `role='admin'`. Si no → HTTP 403.
-- **Alcance de DB:** UPDATE en `users` (role, status) + INSERT/UPDATE en `profiles` (group_join_date).
+- **Alcance de DB:** UPDATE en `users` (role, status) + INSERT/UPDATE en `profiles` (group_join_date) + INSERT condicional en `user_departures_log`.
 - **Regla de Integridad:** Un admin NO puede cambiar su propio rol a un valor distinto de `'admin'`.
 
 **Payload Requerido (Front → Back) — camelCase:**
@@ -461,7 +464,7 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
   "requesterId":  "int — ID del admin que ejecuta la acción",
   "targetUserId": "int — ID del usuario a modificar",
   "newRole":      "string — 'admin' | 'user'",
-  "newStatus":    "string — 'active' | 'inactive' | 'blocked'",
+  "newStatus":    "string — 'active' | 'inactive' | 'blocked' | 'pending'",
   "newJoinDate":  "string | null — YYYY-MM-DD o null para no modificar"
 }
 ```
@@ -480,7 +483,8 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 | 400 | Campos faltantes, valores inválidos, o admin intentando degradar su propio rol |
 | 403 | `requesterId` no es admin o no existe |
 | 500 | Error interno de servidor |
-     Cualquier otro valor rechaza el registro con HTTP 400.
+
+> **Trazabilidad de bajas (Migración 10):** Si `newStatus='inactive'` y el estado previo NO era ya `'inactive'`, se inserta una fila en `user_departures_log` con `action='hidden'`, `acted_by='admin'`, `admin_name=<full_name del admin>`.
 
 ---
 
@@ -645,6 +649,251 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 | 403 | `requesterId` no es admin o no existe |
 | 405 | Método distinto de GET |
 | 500 | Error interno de servidor |
+
+---
+
+### Endpoint: `api/account/toggle_visibility.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/account/toggle_visibility.php`
+- **Autenticación:** `userId` en body — se verifica existencia en BD.
+- **Alcance de DB:** UPDATE `users.status` + INSERT condicional en `user_departures_log`.
+
+**Payload Requerido (Front → Back):**
+```json
+{ "userId": "int — requerido" }
+```
+
+**Lógica:**
+- Si `status = 'active'` → cambia a `'inactive'` + INSERT `user_departures_log` con `action='hidden'`, `acted_by='self'`.
+- Si `status = 'inactive'` → cambia a `'active'` (reactivación, sin log).
+
+**Response Éxito — HTTP 200:**
+```json
+{ "status": "success", "message": "...", "newStatus": "'active' | 'inactive'" }
+```
+
+---
+
+### Endpoint: `api/account/delete_account.php`
+- **Método:** `POST`
+- **Autenticación:** `userId` en body — se verifica existencia.
+- **Alcance de DB:** INSERT `user_departures_log` + DELETE en cascada manual + commit + `unlink()` físico.
+
+**Payload Requerido:**
+```json
+{ "userId": "int — requerido" }
+```
+
+**Proceso atómico:**
+1. Captura rutas físicas de fotos (`profile_photos`) pre-transacción.
+2. BEGIN TRANSACTION con `FOR UPDATE`.
+3. INSERT `user_departures_log` (`action='deleted'`, `acted_by='self'`).
+4. DELETE `social_networks` → `profile_photos` → `profiles` → `daily_scriptures` → `users`.
+5. COMMIT → `unlink()` de archivos físicos.
+
+**Response Éxito — HTTP 200:**
+```json
+{ "status": "success", "message": "Tu cuenta ha sido eliminada permanentemente." }
+```
+
+---
+
+### Endpoint: `api/admin/get_departures.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/admin/get_departures.php`
+- **Autenticación:** `requesterId` (query param) — solo `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** SELECT en `user_departures_log` ORDER BY `created_at DESC`.
+
+**Query Params:**
+```
+?requesterId=INT  (obligatorio)
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id":        "int",
+      "userName":  "string — nombre snapshot al momento de la acción",
+      "action":    "string — 'hidden' | 'deleted'",
+      "reason":    "string | null — razón del usuario (null si fue acción admin)",
+      "actedBy":   "string — 'self' | 'admin'",
+      "adminName": "string | null — nombre del admin (null si actedBy='self')",
+      "createdAt": "string — YYYY-MM-DD HH:MM:SS"
+    }
+  ]
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` faltante o inválido |
+| 403 | No es admin |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/admin/get_pending_users.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/admin/get_pending_users.php`
+- **Autenticación:** `requesterId` (query param) — solo `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** SELECT en `users` WHERE `status='pending'` ORDER BY `created_at ASC`.
+
+**Query Params:**
+```
+?requesterId=INT  (obligatorio)
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id":        "int",
+      "fullName":  "string",
+      "email":     "string",
+      "phone":     "string",
+      "createdAt": "string — YYYY-MM-DD HH:MM:SS"
+    }
+  ]
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` inválido |
+| 403 | No es admin |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/admin/authorize_user.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/admin/authorize_user.php`
+- **Autenticación:** `requesterId` en body JSON — solo `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** UPDATE `users.status` + INSERT `welcome_registry` — **transacción atómica**.
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "requesterId":  "int — ID del admin autenticado",
+  "targetUserId": "int — ID del usuario con status='pending' a autorizar"
+}
+```
+
+**Proceso atómico:**
+1. Verifica que `requesterId` sea `role='admin'`.
+2. BEGIN TRANSACTION con `FOR UPDATE` en la fila del usuario objetivo.
+3. Verifica que `targetUserId` exista y tenga `status='pending'`.
+4. UPDATE `users SET status='active'` donde `id=targetUserId`.
+5. INSERT `welcome_registry` (snapshot: `user_name`, `user_email`, `user_phone`, `admin_id`, `admin_name`).
+6. COMMIT.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Usuario autorizado correctamente.",
+  "data": {
+    "userId":   "int",
+    "userName": "string — nombre del usuario activado"
+  }
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` o `targetUserId` inválidos |
+| 403 | `requesterId` no es admin |
+| 404 | `targetUserId` no encontrado o no está en `status='pending'` |
+| 500 | Error interno / rollback |
+
+---
+
+### Endpoint: `api/admin/get_welcome_registry.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/admin/get_welcome_registry.php`
+- **Autenticación:** `requesterId` (query param) — solo `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** SELECT en `welcome_registry` ORDER BY `authorized_at DESC`.
+
+**Query Params:**
+```
+?requesterId=INT  (obligatorio)
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "id":           "int",
+      "userId":       "int",
+      "userName":     "string — snapshot del nombre al momento de la autorización",
+      "userEmail":    "string — snapshot del correo",
+      "userPhone":    "string — snapshot del teléfono",
+      "adminId":      "int",
+      "adminName":    "string — snapshot del nombre del admin",
+      "authorizedAt": "string — YYYY-MM-DD HH:MM:SS"
+    }
+  ]
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` inválido |
+| 403 | No es admin |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/admin/delete_user_admin.php`
+- **Método:** `POST`
+- **Ruta Completa:** `/api/admin/delete_user_admin.php`
+- **Autenticación:** `requesterId` en body JSON — solo `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** INSERT `user_departures_log` + DELETE en cascada manual — **transacción atómica con FOR UPDATE**.
+- **Regla de Integridad:** El admin NO puede eliminarse a sí mismo (`requesterId !== targetUserId`).
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "requesterId":  "int — ID del admin que ejecuta la eliminación",
+  "targetUserId": "int — ID del usuario a eliminar permanentemente"
+}
+```
+
+**Proceso atómico:**
+1. Verifica que `requesterId` sea `role='admin'` y obtiene su `full_name`.
+2. Captura rutas físicas de fotos (`profile_photos`) **pre-transacción**.
+3. BEGIN TRANSACTION con `SELECT ... FOR UPDATE` en `users WHERE id=targetUserId`.
+4. INSERT `user_departures_log` (`action='deleted'`, `acted_by='admin'`, `admin_name=<full_name admin>`).
+5. DELETE `social_networks` → `profile_photos` → `profiles` → `daily_scriptures` → `invitation_password_log` (si el target era admin) → `users`.
+6. COMMIT → `unlink()` físico de los archivos de foto post-commit.
+7. `welcome_registry` se limpia automáticamente por `ON DELETE CASCADE` en `users`.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Cuenta de [userName] eliminada correctamente."
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | Campos inválidos o admin intentando auto-eliminarse |
+| 403 | `requesterId` no es admin |
+| 404 | `targetUserId` no encontrado |
+| 500 | Error interno / rollback |
 
 ---
 

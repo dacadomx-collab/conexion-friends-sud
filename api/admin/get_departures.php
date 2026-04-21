@@ -75,5 +75,10 @@ try {
     if (!headers_sent()) {
         http_response_code(500);
     }
-    echo json_encode(['status' => 'error', 'message' => 'Error al cargar el registro de bajas.']);
+    $debug = (getenv('APP_ENV') !== 'production') ? $e->getMessage() : null;
+    echo json_encode(array_filter([
+        'status'  => 'error',
+        'message' => 'Error al cargar el registro de bajas.',
+        'debug'   => $debug,
+    ]), JSON_UNESCAPED_UNICODE);
 }

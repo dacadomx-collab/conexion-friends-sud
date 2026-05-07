@@ -143,20 +143,32 @@ Ver detalle completo en la sección "🗄️ ESTRUCTURA DE TABLAS".
 | Función | Descripción |
 | :--- | :--- |
 | `getBirthMonthDay(birthDate)` | Parsea `YYYY-MM-DD` → `{month, day}` sin depender de `new Date()` (evita timezone issues) |
-| `isBirthdayToday(birthDate)` | `true` si mes+día del birthDate === hoy |
-| `isBirthdayThisWeek(birthDate)` | `true` si el cumpleaños cae en la semana Dom–Sáb actual. Comprueba año actual ±1 para bordes de año nuevo |
-| `isBirthdayMonth(birthDate)` | `true` si el mes del birthDate === mes actual |
+| `isBirthdayToday(birthDate)` | `true` si mes+día === hoy |
+| `isBirthdayThisWeek(birthDate)` | `true` si cae en Dom–Sáb de la semana actual. Comprueba año ±1 para bordes de año nuevo |
+| `isBirthdayMonth(birthDate)` | `true` si el mes coincide con el mes actual |
+| `isBirthdayThisMonth(birthDate)` | `true` si el mes coincide pero NO es hoy ni esta semana — tercer nivel de prioridad |
 
-### Insignias de cumpleaños en el grid (DirectoryClient.tsx):
-| Estado | Insignia (esquina sup. izq.) | Borde tarjeta | Comportamiento al clic |
-| :--- | :--- | :--- | :--- |
-| `isBirthdayToday` | 🎂 `"Hoy"` (ámbar sólido, label oculta en xs) | `ring-2 ring-amber-400` | `openSheet(member, true)` → abre Sheet + scroll al `#libro-firmas` |
-| `isBirthdayThisWeek` (pero no hoy) | 🎈 `"Esta semana"` (ámbar suave) | Sin borde extra | `openSheet(member)` normal |
+### Insignias de cumpleaños en el grid (DirectoryClient.tsx) — 3 niveles:
+| Prioridad | Condición | Insignia (sup. izq.) | Borde tarjeta | Clic |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | `bdToday` | 🎂 `"Hoy"` ámbar sólido | `ring-2 ring-amber-400` | `openSheet(member, true)` → scroll a `#libro-firmas` |
+| 2 | `bdThisWeek` (no hoy) | 🎈 `"Esta semana"` ámbar suave | Sin borde | `openSheet(member)` |
+| 3 | `bdThisMonth` (no hoy ni semana) | 🎁 `"Este mes"` gris neutro `bg-slate-100` | Sin borde | `openSheet(member)` |
+
+> Cada nivel excluye a los anteriores: la lógica de cómputo es `bdThisWeek = !bdToday && ...`, `bdThisMonth = !bdToday && !bdThisWeek && ...`
 
 ### `MemberSheet` — nuevos props:
 - `focusWishes: boolean` — si `true`, hace scroll suave al div `#libro-firmas` (`ref={wishesRef}`) con un delay de 380 ms tras abrir el Sheet
 - `openSheet(member, withWishesFocus?)` — función helper en DirectoryClient que encapsula `setSelected + setFocusWishes`
 - `closeSheet()` — limpia ambos estados al cerrar
+
+### `DashboardClient` — Modal "Todos los Cumpleañeros":
+- Estado: `showAllBirthdays: boolean`
+- Trigger: botón `"+N hermanos más cumplen años este mes — Ver todos →"` (visible solo si `birthdays.length > 5`)
+- Modal: overlay fijo `z-50`, `rounded-t-2xl sm:rounded-2xl` (bottom sheet en móvil, centrado en sm+), `max-h-[88vh]` con lista scrollable
+- Cada fila: foto/avatar ámbar + nombre + día + emoji 🎂 (hoy) / 🎁 (resto)
+- Clic en fila: navega a `/directorio?userId={id}` y cierra el modal
+- Cierre: botón ×, o clic en el overlay exterior
 
 ### Reglas de seguridad del módulo:
 - `viewerUserId` se lee de `localStorage["cfs_session"].id` en el cliente (nunca del server)

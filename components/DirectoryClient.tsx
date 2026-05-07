@@ -178,6 +178,15 @@ function isBirthdayThisWeek(birthDate: string | null): boolean {
   return false
 }
 
+// Mes en curso pero NO es hoy ni esta semana — tercer nivel de prioridad.
+function isBirthdayThisMonth(birthDate: string | null): boolean {
+  return (
+    isBirthdayMonth(birthDate) &&
+    !isBirthdayToday(birthDate) &&
+    !isBirthdayThisWeek(birthDate)
+  )
+}
+
 const MONTH_NAMES_ES = [
   "enero","febrero","marzo","abril","mayo","junio",
   "julio","agosto","septiembre","octubre","noviembre","diciembre",
@@ -800,6 +809,7 @@ export function DirectoryClient() {
             const location     = locationLabel(member)
             const bdToday      = isBirthdayToday(member.birthDate)
             const bdThisWeek   = !bdToday && isBirthdayThisWeek(member.birthDate)
+            const bdThisMonth  = !bdToday && !bdThisWeek && isBirthdayThisMonth(member.birthDate)
 
             return (
               <button
@@ -869,6 +879,20 @@ export function DirectoryClient() {
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm bg-amber-100/90 text-amber-800 dark:bg-amber-900/80 dark:text-amber-200">
                       🎈
                       <span className="hidden sm:inline">Esta semana</span>
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Insignia cumpleaños ESTE MES (esquina superior izquierda) ── */}
+                {bdThisMonth && (
+                  <div
+                    className="absolute top-2 left-2 z-20"
+                    title="Cumpleaños este mes"
+                    aria-label={`${member.fullName} cumple años este mes`}
+                  >
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm backdrop-blur-sm bg-slate-100/90 text-slate-600 dark:bg-slate-700/80 dark:text-slate-200">
+                      🎁
+                      <span className="hidden sm:inline">Este mes</span>
                     </span>
                   </div>
                 )}

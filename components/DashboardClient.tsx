@@ -127,8 +127,9 @@ export function DashboardClient() {
   const [privacyError,    setPrivacyError]    = useState<string | null>(null)
   const deleteInFlightRef = useRef(false)
 
-  const [birthdays,       setBirthdays]       = useState<BirthdayMember[]>([])
-  const [birthdayLoading, setBirthdayLoading] = useState(true)
+  const [birthdays,        setBirthdays]        = useState<BirthdayMember[]>([])
+  const [birthdayLoading,  setBirthdayLoading]  = useState(true)
+  const [showAllBirthdays, setShowAllBirthdays] = useState(false)
 
   // ── Leer sesión de localStorage (client-side only) ────────────────────────
   useEffect(() => {
@@ -369,9 +370,12 @@ export function DashboardClient() {
                 })}
               </div>
               {birthdays.length > 5 && (
-                <p className="mt-3 text-xs text-amber-700/60 dark:text-amber-400/60 text-center">
-                  +{birthdays.length - 5} hermanos más cumplen años este mes
-                </p>
+                <button
+                  onClick={() => setShowAllBirthdays(true)}
+                  className="mt-3 w-full text-xs font-semibold text-amber-700/70 dark:text-amber-400/60 hover:text-amber-700 dark:hover:text-amber-300 transition-colors text-center py-1 rounded-lg hover:bg-amber-100/60 dark:hover:bg-amber-900/20"
+                >
+                  +{birthdays.length - 5} hermanos más cumplen años este mes — Ver todos →
+                </button>
               )}
             </div>
           </div>
@@ -634,6 +638,86 @@ export function DashboardClient() {
               >
                 {privacyLoading ? "Eliminando…" : "Eliminar para siempre"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══ Modal: Todos los Cumpleañeros del Mes ══ */}
+      {showAllBirthdays && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-0 sm:px-4"
+          onClick={() => setShowAllBirthdays(false)}
+        >
+          <div
+            className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-background border border-border shadow-2xl flex flex-col max-h-[88vh] sm:max-h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabecera */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-2">
+                <Cake className="h-4 w-4 text-amber-500" />
+                <h3 className="font-bold text-foreground text-base">
+                  Celebrando la Vida
+                </h3>
+                <span className="text-sm text-muted-foreground font-normal capitalize">
+                  — {MONTH_NAMES[new Date().getMonth()]}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowAllBirthdays(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Lista scrollable */}
+            <div className="overflow-y-auto px-3 py-3 space-y-0.5 flex-1">
+              {birthdays.map((b) => {
+                const isToday = b.birthDay === new Date().getDate()
+                return (
+                  <Link
+                    key={b.userId}
+                    href={`/directorio?userId=${b.userId}`}
+                    onClick={() => setShowAllBirthdays(false)}
+                    className="flex items-center gap-3 rounded-xl hover:bg-secondary/60 active:bg-secondary/80 px-2 py-2.5 transition-colors"
+                  >
+                    {b.photoUrl ? (
+                      <img
+                        src={b.photoUrl}
+                        alt={b.fullName}
+                        className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-amber-400/50"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full shrink-0 bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 text-sm font-bold ring-2 ring-amber-400/40">
+                        {b.fullName.charAt(0)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate leading-tight">
+                        {b.fullName}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {isToday
+                          ? "🎉 ¡Hoy es su cumpleaños!"
+                          : `${b.birthDay} de ${MONTH_NAMES[new Date().getMonth()]}`}
+                      </p>
+                    </div>
+                    {isToday
+                      ? <span className="shrink-0 text-xl">🎂</span>
+                      : <span className="shrink-0 text-base">🎁</span>}
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Pie */}
+            <div className="px-5 py-3 border-t border-border shrink-0 text-center">
+              <p className="text-xs text-muted-foreground">
+                {birthdays.length} {birthdays.length === 1 ? "cumpleaños" : "cumpleaños"} este mes
+              </p>
             </div>
           </div>
         </div>

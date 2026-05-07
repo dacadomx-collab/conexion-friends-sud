@@ -68,3 +68,14 @@ WHERE user_id = [ID_DEL_USUARIO];
 -- 5. Finalmente, borramos su cuenta de acceso y datos inmutables
 DELETE FROM users 
 WHERE id = [ID_DEL_USUARIO];
+
+******************************************
+Para editar el cunpleaños de los dos valientes!
+7, Rosa Elena Chávez Maldonado, 1982-01-27
+6, Paola palomares, 1987-11-28
+
+REALES:
+-- 1. Forzar el cumpleaños de Paola (ID 6) para HOY (6 de Mayo)
+UPDATE users SET birth_date = '1987-05-06' WHERE id = 6;
+-- 2. Forzar el cumpleaños de Rosa (ID 7) para MAÑANA (7 de Mayo)
+UPDATE users SET birth_date = '1982-05-07' WHERE id = 7;

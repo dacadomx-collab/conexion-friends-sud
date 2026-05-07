@@ -157,6 +157,27 @@ function isBirthdayToday(birthDate: string | null): boolean {
   return bd.month === today.getMonth() + 1 && bd.day === today.getDate()
 }
 
+// Domingo-Sábado de la semana en curso; maneja semanas que cruzan fin de mes o año.
+function isBirthdayThisWeek(birthDate: string | null): boolean {
+  const bd = getBirthMonthDay(birthDate)
+  if (!bd) return false
+
+  const today     = new Date()
+  const year      = today.getFullYear()
+  const dayOfWeek = today.getDay()                          // 0 = domingo
+
+  // Extremos de la semana actual (midnight, sin horas)
+  const sunday   = new Date(year, today.getMonth(), today.getDate() - dayOfWeek)
+  const saturday = new Date(year, today.getMonth(), today.getDate() - dayOfWeek + 6)
+
+  // Comprobar en el año actual y en los adyacentes (borde año nuevo)
+  for (const y of [year - 1, year, year + 1]) {
+    const candidate = new Date(y, bd.month - 1, bd.day)
+    if (candidate >= sunday && candidate <= saturday) return true
+  }
+  return false
+}
+
 const MONTH_NAMES_ES = [
   "enero","febrero","marzo","abril","mayo","junio",
   "julio","agosto","septiembre","octubre","noviembre","diciembre",
@@ -172,22 +193,26 @@ const GENDER_OPTS = [
 // Sub-componente: Sheet de perfil expandido
 // ---------------------------------------------------------------------------
 function MemberSheet({
-  member, open, onClose, viewerUserId,
+  member, open, onClose, viewerUserId, focusWishes,
 }: {
   member:       Member | null
   open:         boolean
   onClose:      () => void
   viewerUserId: number | null
+  focusWishes:  boolean
 }) {
   const [photoIdx, setPhotoIdx] = useState(0)
 
   // ── Estado del Libro de Firmas ────────────────────────────────────────────
-  const [wishes,      setWishes]      = useState<BirthdayWish[]>([])
+  const [wishes,        setWishes]        = useState<BirthdayWish[]>([])
   const [wishesLoading, setWishesLoading] = useState(false)
   const [wishMessage,   setWishMessage]   = useState("")
   const [postingWish,   setPostingWish]   = useState(false)
   const [wishError,     setWishError]     = useState<string | null>(null)
   const [wishSuccess,   setWishSuccess]   = useState(false)
+
+  // Ref para scroll automático al Libro de Firmas
+  const wishesRef = useRef<HTMLDivElement>(null)
 
   // Reset al cambiar de miembro
   useEffect(() => {
@@ -226,6 +251,15 @@ function MemberSheet({
     })
     return () => { alive = false }
   }, [open, member?.id])
+
+  // ── Scroll al Libro de Firmas cuando se abre con focusWishes ─────────────
+  useEffect(() => {
+    if (!open || !focusWishes || !wishesRef.current) return
+    const timer = setTimeout(() => {
+      wishesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    }, 380)
+    return () => clearTimeout(timer)
+  }, [open, focusWishes, member?.id])
 
   // ── Enviar mensaje al Libro de Firmas ─────────────────────────────────────
   async function handlePostWish() {
@@ -433,7 +467,7 @@ function MemberSheet({
               </div>
 
               {/* Libro de Firmas */}
-              <div>
+              <div ref={wishesRef} id="libro-firmas">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
                   <PenLine className="h-3.5 w-3.5" />
                   Libro de Firmas
@@ -603,7 +637,18 @@ export function DirectoryClient() {
     })
   }, [members, genderFilter, ageMin, ageMax, country, query])
 
-  const [selected, setSelected] = useState<Member | null>(null)
+  const [selected,     setSelected]     = useState<Member | null>(null)
+  const [focusWishes,  setFocusWishes]  = useState(false)
+
+  function openSheet(member: Member, withWishesFocus = false) {
+    setSelected(member)
+    setFocusWishes(withWishesFocus)
+  }
+
+  function closeSheet() {
+    setSelected(null)
+    setFocusWishes(false)
+  }
 
   // ── Auto-abrir perfil desde URL (?userId=X) ───────────────────────────────
   const searchParams  = useSearchParams()
@@ -614,7 +659,7 @@ export function DirectoryClient() {
     if (autoOpened.current || !urlUserId || isNaN(urlUserId) || members.length === 0) return
     const target = members.find((m) => m.id === urlUserId)
     if (target) {
-      setSelected(target)
+      openSheet(target)
       autoOpened.current = true
     }
   }, [urlUserId, members])
@@ -750,15 +795,25 @@ export function DirectoryClient() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filtered.map((member) => {
-            const age      = calcAge(member.birthDate)
-            const badge    = memberBadge(member)
-            const location = locationLabel(member)
+            const age          = calcAge(member.birthDate)
+            const badge        = memberBadge(member)
+            const location     = locationLabel(member)
+            const bdToday      = isBirthdayToday(member.birthDate)
+            const bdThisWeek   = !bdToday && isBirthdayThisWeek(member.birthDate)
 
             return (
               <button
                 key={member.id}
-                onClick={() => setSelected(member)}
-                className="group relative aspect-square rounded-2xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none transition-all duration-200 cursor-pointer text-left bg-stone-100 dark:bg-stone-800"
+                onClick={() => openSheet(member)}
+                className={[
+                  "group relative aspect-square rounded-2xl overflow-hidden shadow-sm",
+                  "hover:shadow-lg hover:-translate-y-0.5 focus-visible:outline-none",
+                  "focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200",
+                  "cursor-pointer text-left bg-stone-100 dark:bg-stone-800",
+                  bdToday
+                    ? "ring-2 ring-amber-400 shadow-amber-200/60 dark:shadow-amber-900/40"
+                    : "",
+                ].filter(Boolean).join(" ")}
                 aria-label={`Ver perfil de ${member.fullName}`}
               >
                 {member.photoUrl ? (
@@ -775,11 +830,45 @@ export function DirectoryClient() {
 
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
 
+                {/* ── Insignia de rol / membresía (esquina superior derecha) ── */}
                 {badge && (
                   <div className="absolute top-2 right-2 z-10">
                     <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm ${badge.cls}`}>
                       {badge.icon}
                       <span className="hidden sm:inline">{badge.label}</span>
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Insignia cumpleaños HOY (esquina superior izquierda) ── */}
+                {bdToday && (
+                  <div
+                    role="button"
+                    title={`¡Hoy es el cumpleaños de ${member.fullName}! Clic para felicitarle`}
+                    aria-label={`Ir al Libro de Firmas de ${member.fullName}`}
+                    className="absolute top-2 left-2 z-20"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      openSheet(member, true)
+                    }}
+                  >
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-lg backdrop-blur-sm bg-amber-400/95 text-white animate-pulse-slow">
+                      🎂
+                      <span className="hidden sm:inline">Hoy</span>
+                    </span>
+                  </div>
+                )}
+
+                {/* ── Insignia cumpleaños ESTA SEMANA (esquina superior izquierda) ── */}
+                {bdThisWeek && (
+                  <div
+                    className="absolute top-2 left-2 z-20"
+                    title="Cumpleaños esta semana"
+                    aria-label={`${member.fullName} cumple años esta semana`}
+                  >
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold shadow-md backdrop-blur-sm bg-amber-100/90 text-amber-800 dark:bg-amber-900/80 dark:text-amber-200">
+                      🎈
+                      <span className="hidden sm:inline">Esta semana</span>
                     </span>
                   </div>
                 )}
@@ -803,8 +892,9 @@ export function DirectoryClient() {
       <MemberSheet
         member={selected}
         open={selected !== null}
-        onClose={() => setSelected(null)}
+        onClose={closeSheet}
         viewerUserId={viewerUserId}
+        focusWishes={focusWishes}
       />
 
     </div>

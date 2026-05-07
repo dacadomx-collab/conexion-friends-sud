@@ -139,6 +139,25 @@ Ver detalle completo en la sección "🗄️ ESTRUCTURA DE TABLAS".
 - **`DashboardClient.tsx`**: nueva sección "Cumpleañeros de [mes]" (tarjeta ámbar) entre la escritura del día y la tarjeta "Tu Perfil". Enlaza a `/directorio?userId={id}` para abrir el perfil.
 - **`DirectoryClient.tsx / MemberSheet`**: si `MONTH(birth_date) === mes actual` → muestra banner + "Libro de Firmas" con mensajes existentes y formulario de nueva firma. Confetti (`canvas-confetti`) se dispara si es cumpleaños HOY.
 
+### Helpers de fechas (en DirectoryClient.tsx):
+| Función | Descripción |
+| :--- | :--- |
+| `getBirthMonthDay(birthDate)` | Parsea `YYYY-MM-DD` → `{month, day}` sin depender de `new Date()` (evita timezone issues) |
+| `isBirthdayToday(birthDate)` | `true` si mes+día del birthDate === hoy |
+| `isBirthdayThisWeek(birthDate)` | `true` si el cumpleaños cae en la semana Dom–Sáb actual. Comprueba año actual ±1 para bordes de año nuevo |
+| `isBirthdayMonth(birthDate)` | `true` si el mes del birthDate === mes actual |
+
+### Insignias de cumpleaños en el grid (DirectoryClient.tsx):
+| Estado | Insignia (esquina sup. izq.) | Borde tarjeta | Comportamiento al clic |
+| :--- | :--- | :--- | :--- |
+| `isBirthdayToday` | 🎂 `"Hoy"` (ámbar sólido, label oculta en xs) | `ring-2 ring-amber-400` | `openSheet(member, true)` → abre Sheet + scroll al `#libro-firmas` |
+| `isBirthdayThisWeek` (pero no hoy) | 🎈 `"Esta semana"` (ámbar suave) | Sin borde extra | `openSheet(member)` normal |
+
+### `MemberSheet` — nuevos props:
+- `focusWishes: boolean` — si `true`, hace scroll suave al div `#libro-firmas` (`ref={wishesRef}`) con un delay de 380 ms tras abrir el Sheet
+- `openSheet(member, withWishesFocus?)` — función helper en DirectoryClient que encapsula `setSelected + setFocusWishes`
+- `closeSheet()` — limpia ambos estados al cerrar
+
 ### Reglas de seguridad del módulo:
 - `viewerUserId` se lee de `localStorage["cfs_session"].id` en el cliente (nunca del server)
 - La UI del formulario se oculta si el viewer es el propio cumpleañero

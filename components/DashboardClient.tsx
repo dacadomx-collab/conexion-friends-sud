@@ -22,12 +22,28 @@ import {
   X,
   AlertTriangle,
   Lock,
+  Cake,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
 // Clave de sesión — debe coincidir con LoginForm.tsx y auth-form.tsx
 // ---------------------------------------------------------------------------
 const CFS_SESSION_KEY = "cfs_session"
+
+const MONTH_NAMES = [
+  "enero","febrero","marzo","abril","mayo","junio",
+  "julio","agosto","septiembre","octubre","noviembre","diciembre",
+]
+
+interface BirthdayMember {
+  userId:    number
+  fullName:  string
+  birthDate: string
+  birthDay:  number
+  ward:      string
+  stake:     string
+  photoUrl:  string | null
+}
 
 interface SessionData {
   id:       number
@@ -111,6 +127,9 @@ export function DashboardClient() {
   const [privacyError,    setPrivacyError]    = useState<string | null>(null)
   const deleteInFlightRef = useRef(false)
 
+  const [birthdays,       setBirthdays]       = useState<BirthdayMember[]>([])
+  const [birthdayLoading, setBirthdayLoading] = useState(true)
+
   // ── Leer sesión de localStorage (client-side only) ────────────────────────
   useEffect(() => {
     const raw = localStorage.getItem(CFS_SESSION_KEY)
@@ -146,6 +165,18 @@ export function DashboardClient() {
         else setScripture(null)
       })
       .catch(() => setScripture(null))
+  }, [])
+
+  // ── Cargar cumpleañeros del mes ───────────────────────────────────────────
+  useEffect(() => {
+    setBirthdayLoading(true)
+    fetch(`${API_BASE_URL}/api/get_birthdays.php`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.status === "success") setBirthdays(json.data ?? [])
+      })
+      .catch(() => {})
+      .finally(() => setBirthdayLoading(false))
   }, [])
 
   function handleLogout() {
@@ -293,6 +324,58 @@ export function DashboardClient() {
             </Link>
           </div>
         </div>
+
+        {/* ── Cumpleañeros del Mes ── */}
+        {!birthdayLoading && birthdays.length > 0 && (
+          <div className="mb-6">
+            <div className="rounded-2xl border border-amber-400/40 bg-amber-50 dark:bg-amber-950/20 px-5 py-4">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-amber-700 dark:text-amber-400 mb-3">
+                <Cake className="h-3.5 w-3.5" />
+                Celebrando la Vida — {MONTH_NAMES[new Date().getMonth()]}
+              </p>
+              <div className="space-y-1.5">
+                {birthdays.slice(0, 5).map((b) => {
+                  const isToday = b.birthDay === new Date().getDate()
+                  return (
+                    <Link
+                      key={b.userId}
+                      href={`/directorio?userId=${b.userId}`}
+                      className="flex items-center gap-3 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/30 -mx-1 px-2 py-2 transition-colors"
+                    >
+                      {b.photoUrl ? (
+                        <img
+                          src={b.photoUrl}
+                          alt={b.fullName}
+                          className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-amber-400/60"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full shrink-0 bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-amber-700 dark:text-amber-300 text-sm font-bold ring-2 ring-amber-400/50">
+                          {b.fullName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate leading-tight">
+                          {b.fullName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {isToday
+                            ? "🎉 ¡Hoy es su cumpleaños!"
+                            : `${b.birthDay} de ${MONTH_NAMES[new Date().getMonth()]}`}
+                        </p>
+                      </div>
+                      {isToday && <span className="shrink-0 text-xl">🎂</span>}
+                    </Link>
+                  )
+                })}
+              </div>
+              {birthdays.length > 5 && (
+                <p className="mt-3 text-xs text-amber-700/60 dark:text-amber-400/60 text-center">
+                  +{birthdays.length - 5} hermanos más cumplen años este mes
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Tarjeta especial: Tu Perfil (con dos botones internos) ── */}
         <Card className="border border-border/60 shadow-sm mb-4">

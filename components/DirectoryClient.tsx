@@ -20,6 +20,8 @@ import {
   UserCircle2,
   Users,
   AlertTriangle,
+  PenLine,
+  Send,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
@@ -33,6 +35,14 @@ import { API_BASE_URL } from "@/lib/api"
 // ---------------------------------------------------------------------------
 // Tipos — alineados exactamente con get_directory.php v3
 // ---------------------------------------------------------------------------
+
+interface BirthdayWish {
+  wishId:     number
+  authorId:   number
+  authorName: string
+  message:    string
+  createdAt:  string
+}
 interface Socials {
   instagram: string
   facebook:  string
@@ -121,6 +131,37 @@ function locationLabel(m: Member): string {
   return [m.city, m.state, m.country].filter(Boolean).slice(0, 2).join(", ")
 }
 
+// ---------------------------------------------------------------------------
+// Helpers de cumpleaños
+// ---------------------------------------------------------------------------
+function getBirthMonthDay(birthDate: string | null): { month: number; day: number } | null {
+  if (!birthDate) return null
+  const parts = birthDate.split("-")
+  if (parts.length < 3) return null
+  const month = parseInt(parts[1], 10)
+  const day   = parseInt(parts[2], 10)
+  if (isNaN(month) || isNaN(day)) return null
+  return { month, day }
+}
+
+function isBirthdayMonth(birthDate: string | null): boolean {
+  const bd = getBirthMonthDay(birthDate)
+  if (!bd) return false
+  return bd.month === new Date().getMonth() + 1
+}
+
+function isBirthdayToday(birthDate: string | null): boolean {
+  const bd = getBirthMonthDay(birthDate)
+  if (!bd) return false
+  const today = new Date()
+  return bd.month === today.getMonth() + 1 && bd.day === today.getDate()
+}
+
+const MONTH_NAMES_ES = [
+  "enero","febrero","marzo","abril","mayo","junio",
+  "julio","agosto","septiembre","octubre","noviembre","diciembre",
+]
+
 const GENDER_OPTS = [
   { value: "all", label: "Todos",    icon: <Users className="h-4 w-4" /> },
   { value: "M",   label: "Hermanos", icon: null },
@@ -131,14 +172,89 @@ const GENDER_OPTS = [
 // Sub-componente: Sheet de perfil expandido
 // ---------------------------------------------------------------------------
 function MemberSheet({
-  member, open, onClose,
+  member, open, onClose, viewerUserId,
 }: {
-  member:  Member | null
-  open:    boolean
-  onClose: () => void
+  member:       Member | null
+  open:         boolean
+  onClose:      () => void
+  viewerUserId: number | null
 }) {
   const [photoIdx, setPhotoIdx] = useState(0)
-  useEffect(() => { setPhotoIdx(0) }, [member?.id])
+
+  // ── Estado del Libro de Firmas ────────────────────────────────────────────
+  const [wishes,      setWishes]      = useState<BirthdayWish[]>([])
+  const [wishesLoading, setWishesLoading] = useState(false)
+  const [wishMessage,   setWishMessage]   = useState("")
+  const [postingWish,   setPostingWish]   = useState(false)
+  const [wishError,     setWishError]     = useState<string | null>(null)
+  const [wishSuccess,   setWishSuccess]   = useState(false)
+
+  // Reset al cambiar de miembro
+  useEffect(() => {
+    setPhotoIdx(0)
+    setWishes([])
+    setWishMessage("")
+    setWishError(null)
+    setWishSuccess(false)
+  }, [member?.id])
+
+  // ── Cargar mensajes del Libro de Firmas (solo en mes de cumpleaños) ───────
+  useEffect(() => {
+    if (!open || !member || !isBirthdayMonth(member.birthDate)) return
+    setWishesLoading(true)
+    fetch(`${API_BASE_URL}/api/birthday_wishes/get_wishes.php?recipientId=${member.id}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.status === "success") setWishes(json.data ?? [])
+      })
+      .catch(() => {})
+      .finally(() => setWishesLoading(false))
+  }, [open, member?.id])
+
+  // ── Confetti para cumpleaños de hoy ──────────────────────────────────────
+  useEffect(() => {
+    if (!open || !member || !isBirthdayToday(member.birthDate)) return
+    let alive = true
+    import("canvas-confetti").then((mod) => {
+      if (!alive) return
+      mod.default({
+        particleCount: 160,
+        spread:        80,
+        origin:        { y: 0.35 },
+        colors:        ["#FFD700", "#FF69B4", "#00CED1", "#32CD32", "#FF6347"],
+      })
+    })
+    return () => { alive = false }
+  }, [open, member?.id])
+
+  // ── Enviar mensaje al Libro de Firmas ─────────────────────────────────────
+  async function handlePostWish() {
+    if (!viewerUserId || !member) return
+    setPostingWish(true)
+    setWishError(null)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/birthday_wishes/post_wish.php`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          authorId:    viewerUserId,
+          recipientId: member.id,
+          message:     wishMessage.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message)
+      setWishSuccess(true)
+      setWishMessage("")
+      const refetch = await fetch(`${API_BASE_URL}/api/birthday_wishes/get_wishes.php?recipientId=${member.id}`)
+      const rfJson  = await refetch.json()
+      if (rfJson.status === "success") setWishes(rfJson.data ?? [])
+    } catch (err) {
+      setWishError(err instanceof Error ? err.message : "Error al enviar el mensaje.")
+    } finally {
+      setPostingWish(false)
+    }
+  }
 
   if (!member) return null
 
@@ -302,6 +418,92 @@ function MemberSheet({
             </div>
           )}
 
+          {/* ── Sección Celebrando la Vida ──────────────────────────────── */}
+          {isBirthdayMonth(member.birthDate) && (
+            <div className="border-t border-amber-200 dark:border-amber-900/40 pt-5 space-y-4">
+
+              {/* Banner de cumpleaños */}
+              <div className="rounded-2xl bg-gradient-to-br from-amber-400/20 via-orange-300/15 to-amber-100/10 dark:from-amber-800/30 dark:via-orange-900/20 dark:to-amber-950/10 border border-amber-300/50 dark:border-amber-700/40 px-4 py-4 text-center">
+                <p className="text-2xl mb-1">🎂</p>
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 leading-snug">
+                  {isBirthdayToday(member.birthDate)
+                    ? `¡Hoy es el cumpleaños de ${member.fullName.split(" ")[0]}! 🎉`
+                    : `¡${member.fullName.split(" ")[0]} cumple años en ${MONTH_NAMES_ES[new Date().getMonth()]}! 🎈`}
+                </p>
+              </div>
+
+              {/* Libro de Firmas */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
+                  <PenLine className="h-3.5 w-3.5" />
+                  Libro de Firmas
+                </p>
+
+                {/* Mensajes existentes */}
+                {wishesLoading ? (
+                  <div className="flex justify-center py-5">
+                    <div className="h-4 w-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+                  </div>
+                ) : wishes.length > 0 ? (
+                  <div className="space-y-3 mb-4">
+                    {wishes.map((w) => (
+                      <div
+                        key={w.wishId}
+                        className="bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3.5 py-3 border border-amber-100 dark:border-amber-900/40"
+                      >
+                        <p className="text-sm text-foreground leading-relaxed">
+                          &ldquo;{w.message}&rdquo;
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5 font-medium">
+                          — {w.authorName}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-3 mb-4">
+                    Aún no hay mensajes. ¡Sé el primero en dejar tu firma!
+                  </p>
+                )}
+
+                {/* Formulario — solo si el viewer no es el propio cumpleañero */}
+                {viewerUserId && viewerUserId !== member.id && (
+                  <div className="space-y-2">
+                    {wishSuccess ? (
+                      <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 px-4 py-3 text-center">
+                        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                          💌 ¡Tu mensaje fue enviado con amor!
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <textarea
+                          value={wishMessage}
+                          onChange={(e) => setWishMessage(e.target.value)}
+                          placeholder="Escribe un mensaje edificante…"
+                          maxLength={500}
+                          rows={3}
+                          className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-400/60 transition-shadow"
+                        />
+                        {wishError && (
+                          <p className="text-xs text-destructive">{wishError}</p>
+                        )}
+                        <button
+                          onClick={handlePostWish}
+                          disabled={postingWish || wishMessage.trim().length < 3}
+                          className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-sm py-2.5 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="h-4 w-4" />
+                          {postingWish ? "Enviando…" : "Dejar mi firma"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       </SheetContent>
     </Sheet>
@@ -326,8 +528,19 @@ function SocialPill({ href, icon, label }: { href: string; icon: React.ReactNode
 // Componente principal
 // ---------------------------------------------------------------------------
 export function DirectoryClient() {
-  const [isMounted, setIsMounted] = useState(false)
-  useEffect(() => { setIsMounted(true) }, [])
+  const [isMounted,    setIsMounted]    = useState(false)
+  const [viewerUserId, setViewerUserId] = useState<number | null>(null)
+
+  useEffect(() => {
+    setIsMounted(true)
+    try {
+      const raw = localStorage.getItem("cfs_session")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed?.id) setViewerUserId(Number(parsed.id))
+      }
+    } catch { /* sesión inválida: continuar sin userId */ }
+  }, [])
 
   // ── Datos del backend ──────────────────────────────────────────────────────
   const [members,   setMembers]   = useState<Member[]>([])
@@ -591,6 +804,7 @@ export function DirectoryClient() {
         member={selected}
         open={selected !== null}
         onClose={() => setSelected(null)}
+        viewerUserId={viewerUserId}
       />
 
     </div>

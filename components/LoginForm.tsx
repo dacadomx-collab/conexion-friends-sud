@@ -18,11 +18,12 @@ import { API_BASE_URL } from "@/lib/api"
 // Tipos
 // ---------------------------------------------------------------------------
 interface LoginSuccessData {
-  id:      number
-  fullName: string
-  email:   string
-  role?:   string
-  status?: string
+  id:                  number
+  fullName:            string
+  email:               string
+  role?:               string
+  status?:             string
+  mustChangePassword?: boolean
 }
 
 interface ApiResponse {
@@ -87,8 +88,9 @@ export function LoginForm({ onSuccess, redirectTo }: LoginFormProps) {
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(userData))
 
         onSuccess?.(userData)
-        // Usuarios pendientes de aprobación van a /pendiente para completar onboarding
-        if (userData.status === "pending") {
+        if (userData.mustChangePassword) {
+          router.push("/cambiar-contrasena")
+        } else if (userData.status === "pending") {
           router.push("/pendiente")
         } else {
           router.push(redirectTo ?? "/dashboard")

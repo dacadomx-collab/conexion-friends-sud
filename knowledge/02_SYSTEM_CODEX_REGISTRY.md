@@ -115,6 +115,49 @@
 > `plain_code` **solo** se expone al frontend en `get_invitation_log.php` (ruta protegida por `role='admin'`).
 > **Scripts:** `database/migracion_05_invitation_password_log.sql` · `database/migracion_05b_plain_code.sql`
 
+### Tabla: `birthday_wishes` *(Migración 11 — Módulo: Celebrando la Vida)*
+- `id`: INT UNSIGNED AUTO_INCREMENT — Clave primaria
+- `recipient_id`: INT NOT NULL — FK → `users.id` ON DELETE CASCADE | Cumpleañero (destinatario del mensaje)
+- `author_id`: INT NOT NULL — FK → `users.id` ON DELETE CASCADE | Autor del mensaje de felicitación
+- `message`: VARCHAR(500) NOT NULL — Texto del mensaje edificante (3–500 chars, validado en backend)
+- `created_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+**Índices:** `INDEX idx_bw_recipient (recipient_id)` · `INDEX idx_bw_author (author_id)`
+
+**Restricciones de integridad:**
+> - `recipient_id ≠ author_id` — un usuario no puede felicitarse a sí mismo (verificado en backend antes del INSERT).
+> - Ambos usuarios deben tener `status = 'active'` — verificado con `SELECT COUNT(*) FROM users WHERE id IN (:id1, :id2) AND status = 'active'` esperando COUNT = 2.
+> - **Unicidad por año (capa de aplicación):** Un autor solo puede dejar UN mensaje por destinatario por año calendario. Se valida con `SELECT id WHERE author_id=X AND recipient_id=Y AND YEAR(created_at)=YEAR(CURDATE())`. Si ya existe → HTTP 409. ⚠️ No se usa restricción DB (`UNIQUE KEY` con función `YEAR()`) por incompatibilidad con MySQL < 8.0.13.
+> - El mensaje se almacena en texto plano (sin `htmlspecialchars`). La capa React protege contra XSS al renderizar via JSX.
+> - Si el usuario es eliminado: `ON DELETE CASCADE` en ambas FK limpia automáticamente sus mensajes emitidos y recibidos.
+> **Script:** `database/migracion_11_birthday_wishes.sql`
+
+---
+
+### Tabla: `welcome_registry` *(Migración 09)*
+- `id`: INT AUTO_INCREMENT — Clave primaria
+- `user_id`: INT NOT NULL — FK → `users.id` ON DELETE CASCADE | Miembro autorizado
+- `user_name`: VARCHAR(150) NOT NULL — Nombre del miembro **snapshot al momento de la autorización**
+- `user_email`: VARCHAR(255) NOT NULL — Correo snapshot
+- `user_phone`: VARCHAR(20) NOT NULL — Teléfono snapshot
+- `admin_id`: INT NOT NULL — FK → `users.id` ON DELETE RESTRICT | Admin que autorizó
+- `admin_name`: VARCHAR(150) NOT NULL — Nombre del admin snapshot
+- `authorized_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+> **Propósito:** Registro histórico inmutable de cada autorización. Se inserta dentro de la misma transacción que activa `users.status = 'active'`. Si el usuario se elimina, `ON DELETE CASCADE` limpia la fila.
+> **Script:** `database/migracion_09_pending_approval.sql`
+
+### Tabla: `user_departures_log` *(Migraciones 07 + 10)*
+- `id`: INT UNSIGNED AUTO_INCREMENT — Clave primaria
+- `user_name`: VARCHAR(150) NOT NULL — Nombre del usuario al momento de la acción (snapshot; persiste tras borrado)
+- `action`: ENUM('hidden','deleted') NOT NULL
+- `reason`: TEXT NULL — Razón opcional (solo en acciones propias)
+- `acted_by`: ENUM('self','admin') NOT NULL DEFAULT 'self'
+- `admin_name`: VARCHAR(150) NULL DEFAULT NULL — Nombre del admin si `acted_by='admin'`
+- `created_at`: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+> **Scripts:** `database/migracion_07_user_departures.sql` · `database/migracion_10_cleanup_whitelist_trazabilidad.sql`
+
 ## 🧠 REGISTRO SEMÁNTICO (VOCABULARIO CONTROLADO)
 - ✅ **Términos Permitidos:** `ward`, `stake`, `bio`, `showWhatsapp`, `userId`, `fullName`, `birthDate`, `country`, `state`, `city`, `invitePassword`, `newInvitePassword`, `requesterId`, `adminId`, `adminName`, `createdAt`, `plainCode`, `newStatus`, `accountStatus`, `userName`, `action`, `reason`, `departures`, `actedBy`, `targetUserId`, `authorizedAt`, `pendingUsers`, `welcomeRegistry`, `authorizeUser`, `deleteUserAdmin`, `allUsersOpen`, `allDepsOpen`, `deleteConfirm`, `deletingId`, `recipientId`, `authorId`, `authorName`, `wishId`, `wishMessage`, `birthDay`, `birthdays`, `birthdayLoading`, `wishes`, `wishesLoading`, `postingWish`, `wishSuccess`, `wishError`, `viewerUserId`
 - ❌ **Términos Prohibidos:** `barrio`, `estaca`, `descripcion`, `mostrarWhatsapp`, `id_usuario`, `nombre`, `fechaNacimiento`, `pais`, `estado`, `ciudad`, `municipio`, `masterPassword`, `gatePassword`, `invitationCode`, `plain_text`, `rawPassword`, `deleteUser`, `hideUser`, `deactivate`, `whitelistPhone`, `whitelistHistory`, `addWhitelist`, `importCsv`, `isUsed`, `addedBy`, `referenceName`
@@ -127,54 +170,135 @@
 
 ## 🎂 MÓDULO: CELEBRANDO LA VIDA (Cumpleaños) — Migración 11
 
-### Tabla nueva: `birthday_wishes`
-Ver detalle completo en la sección "🗄️ ESTRUCTURA DE TABLAS".
+> **Propósito:** Visibilidad de cumpleaños y espacio de ministración (Libro de Firmas) para los miembros activos.
+> **Fuente de verdad:** `users.birth_date` — campo ⛔ inmutable. Se compara solo mes+día, ignorando el año.
+> **Script de BD:** `database/migracion_11_birthday_wishes.sql`
 
-### Endpoints nuevos:
-- `GET /api/get_birthdays.php?month=INT` → Cumpleañeros del mes
-- `GET /api/birthday_wishes/get_wishes.php?recipientId=INT` → Libro de Firmas (año actual)
-- `POST /api/birthday_wishes/post_wish.php` → Guardar firma `{authorId, recipientId, message}`
+### Nueva tabla: `birthday_wishes`
+Ver esquema completo en la sección [🗄️ ESTRUCTURA DE TABLAS → `birthday_wishes`].
 
-### Cambios en frontend:
-- **`DashboardClient.tsx`**: nueva sección "Cumpleañeros de [mes]" (tarjeta ámbar) entre la escritura del día y la tarjeta "Tu Perfil". Enlaza a `/directorio?userId={id}` para abrir el perfil.
-- **`DirectoryClient.tsx / MemberSheet`**: si `MONTH(birth_date) === mes actual` → muestra banner + "Libro de Firmas" con mensajes existentes y formulario de nueva firma. Confetti (`canvas-confetti`) se dispara si es cumpleaños HOY.
+### Nuevos endpoints:
+| Endpoint | Método | Descripción |
+| :--- | :--- | :--- |
+| `api/get_birthdays.php` | GET `?month=INT` | Cumpleañeros del mes (default: mes actual del servidor) |
+| `api/birthday_wishes/get_wishes.php` | GET `?recipientId=INT` | Mensajes del Libro de Firmas para un cumpleañero (año actual) |
+| `api/birthday_wishes/post_wish.php` | POST JSON | Guardar mensaje `{authorId, recipientId, message}` |
 
-### Helpers de fechas (en DirectoryClient.tsx):
-| Función | Descripción |
-| :--- | :--- |
-| `getBirthMonthDay(birthDate)` | Parsea `YYYY-MM-DD` → `{month, day}` sin depender de `new Date()` (evita timezone issues) |
-| `isBirthdayToday(birthDate)` | `true` si mes+día === hoy |
-| `isBirthdayThisWeek(birthDate)` | `true` si cae en Dom–Sáb de la semana actual. Comprueba año ±1 para bordes de año nuevo |
-| `isBirthdayMonth(birthDate)` | `true` si el mes coincide con el mes actual |
-| `isBirthdayThisMonth(birthDate)` | `true` si el mes coincide pero NO es hoy ni esta semana — tercer nivel de prioridad |
+Ver contratos completos en `03_CONTRATOS_API_Y_LOGICA.md`.
 
-### Insignias de cumpleaños en el grid (DirectoryClient.tsx) — 3 niveles:
-| Prioridad | Condición | Insignia (sup. izq.) | Borde tarjeta | Clic |
-| :--- | :--- | :--- | :--- | :--- |
-| 1 | `bdToday` | 🎂 `"Hoy"` ámbar sólido | `ring-2 ring-amber-400` | `openSheet(member, true)` → scroll a `#libro-firmas` |
-| 2 | `bdThisWeek` (no hoy) | 🎈 `"Esta semana"` ámbar suave | Sin borde | `openSheet(member)` |
-| 3 | `bdThisMonth` (no hoy ni semana) | 🎁 `"Este mes"` gris neutro `bg-slate-100` | Sin borde | `openSheet(member)` |
+---
 
-> Cada nivel excluye a los anteriores: la lógica de cómputo es `bdThisWeek = !bdToday && ...`, `bdThisMonth = !bdToday && !bdThisWeek && ...`
+### Librería: `canvas-confetti`
+- **Package:** `canvas-confetti` + `@types/canvas-confetti` (ambos en `dependencies`)
+- **Carga:** Dinámica con `import("canvas-confetti")` dentro de `useEffect` — NUNCA import estático en el top del archivo para evitar errores de SSR (Next.js renderiza en servidor, `document` no existe allí).
+- **Patrón de uso:**
+  ```typescript
+  useEffect(() => {
+    if (!open || !isBirthdayToday(member.birthDate)) return
+    let alive = true
+    import("canvas-confetti").then((mod) => {
+      if (!alive) return
+      mod.default({ particleCount: 160, spread: 80, origin: { y: 0.35 } })
+    })
+    return () => { alive = false }  // cleanup si el componente desmonta antes
+  }, [open, member?.id])
+  ```
+- **Disparo:** Solo cuando el `MemberSheet` se abre (`open === true`) Y `isBirthdayToday(member.birthDate) === true`. Se dispara una sola vez por apertura de Sheet.
 
-### `MemberSheet` — nuevos props:
-- `focusWishes: boolean` — si `true`, hace scroll suave al div `#libro-firmas` (`ref={wishesRef}`) con un delay de 380 ms tras abrir el Sheet
-- `openSheet(member, withWishesFocus?)` — función helper en DirectoryClient que encapsula `setSelected + setFocusWishes`
-- `closeSheet()` — limpia ambos estados al cerrar
+---
 
-### `DashboardClient` — Modal "Todos los Cumpleañeros":
-- Estado: `showAllBirthdays: boolean`
-- Trigger: botón `"+N hermanos más cumplen años este mes — Ver todos →"` (visible solo si `birthdays.length > 5`)
-- Modal: overlay fijo `z-50`, `rounded-t-2xl sm:rounded-2xl` (bottom sheet en móvil, centrado en sm+), `max-h-[88vh]` con lista scrollable
-- Cada fila: foto/avatar ámbar + nombre + día + emoji 🎂 (hoy) / 🎁 (resto)
-- Clic en fila: navega a `/directorio?userId={id}` y cierra el modal
-- Cierre: botón ×, o clic en el overlay exterior
+### Helpers de fechas (archivo: `components/DirectoryClient.tsx`)
+
+| Función | Firma | Descripción |
+| :--- | :--- | :--- |
+| `getBirthMonthDay` | `(birthDate: string\|null) → {month,day}\|null` | Parsea `YYYY-MM-DD` extrayendo mes y día sin construir `new Date(string)`. Evita desfases de zona horaria. |
+| `isBirthdayToday` | `(birthDate) → boolean` | `true` si mes+día del birthDate === día de hoy |
+| `isBirthdayThisWeek` | `(birthDate) → boolean` | `true` si el cumpleaños cae en la semana Dom–Sáb actual. Comprueba año actual ±1 para cubrir semanas que cruzan el borde de año nuevo. |
+| `isBirthdayMonth` | `(birthDate) → boolean` | `true` si el mes del birthDate coincide con el mes actual |
+| `isBirthdayThisMonth` | `(birthDate) → boolean` | `true` si el mes coincide, pero NO es hoy ni esta semana (= tercer nivel de prioridad) |
+
+**Constante auxiliar:** `MONTH_NAMES_ES` — array de 12 nombres de mes en español (índice 0 = enero).
+
+---
+
+### Insignias de cumpleaños en el grid del Directorio — 3 niveles de prioridad
+
+Posición en la tarjeta: **esquina superior izquierda** (`absolute top-2 left-2 z-20`).
+La insignia de rol/membresía preexistente (Admin, Nuevo, Confianza) permanece en **esquina superior derecha** sin colisión.
+
+| Prioridad | Estado | Insignia | Estilo badge | Borde tarjeta | Comportamiento al clic |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `bdToday` | 🎂 `Hoy` | `bg-amber-400/95 text-white` sólido | `ring-2 ring-amber-400` | `div[role="button"]` con `e.stopPropagation()` → `openSheet(member, true)` → abre Sheet + scroll a `#libro-firmas` |
+| 2 | `bdThisWeek` (¬hoy) | 🎈 `Esta semana` | `bg-amber-100/90 text-amber-800` suave | Sin borde extra | Click normal en la tarjeta → `openSheet(member)` |
+| 3 | `bdThisMonth` (¬hoy, ¬semana) | 🎁 `Este mes` | `bg-slate-100/90 text-slate-600` neutro | Sin borde extra | Click normal en la tarjeta → `openSheet(member)` |
+
+> En móvil (`xs`): el texto de la label está oculto (`hidden sm:inline`) — solo se muestra el emoji para no saturar el espacio.
+> Prioridad excluyente: `bdThisWeek = !bdToday && isBirthdayThisWeek(...)`, `bdThisMonth = !bdToday && !bdThisWeek && isBirthdayMonth(...)`.
+
+---
+
+### `MemberSheet` — Sección "Celebrando la Vida"
+
+La sección de cumpleaños se renderiza **solo si `isBirthdayMonth(member.birthDate) === true`**, colocada al final del perfil (después de redes sociales), separada con borde ámbar.
+
+**Nuevos props de `MemberSheet`:**
+| Prop | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `focusWishes` | `boolean` | Si `true`, ejecuta scroll suave al elemento `#libro-firmas` con delay 380 ms tras abrir el Sheet |
+| `viewerUserId` | `number \| null` | ID del usuario autenticado (leído de `localStorage`). Si coincide con `member.id`, oculta el formulario de firmas. |
+
+**Funciones helper en `DirectoryClient`:**
+- `openSheet(member, withWishesFocus?)` — encapsula `setSelected(member) + setFocusWishes(bool)`.
+- `closeSheet()` — resetea ambos estados al cerrar.
+
+**Estado interno de `MemberSheet` para el Libro de Firmas:**
+| Estado | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `wishes` | `BirthdayWish[]` | Mensajes del año actual cargados desde la API |
+| `wishesLoading` | `boolean` | Spinner de carga |
+| `wishMessage` | `string` | Texto del textarea del formulario |
+| `postingWish` | `boolean` | Deshabilita el botón durante el POST |
+| `wishError` | `string \| null` | Error a mostrar si el POST falla |
+| `wishSuccess` | `boolean` | Reemplaza el formulario con mensaje de éxito |
+| `wishesRef` | `useRef<HTMLDivElement>` | Ref adjunto al `div#libro-firmas` para scroll programático |
+
+**Interfaz `BirthdayWish`:** `{ wishId: number, authorId: number, authorName: string, message: string, createdAt: string }`
+
+---
+
+### `DashboardClient` — Tarjeta + Modal "Celebrando la Vida"
+
+**Tarjeta (sección compacta ámbar):**
+- Posición: entre la Escritura del Día y la tarjeta "Tu Perfil".
+- Visible solo si `!birthdayLoading && birthdays.length > 0`.
+- Muestra hasta **5** entradas; cumpleañeros de HOY van con emoji 🎂 y texto "¡Hoy es su cumpleaños!".
+- Cada fila es un `<Link href="/directorio?userId={id}">` — navega al Directorio y auto-abre el perfil.
+- Estado: `birthdays: BirthdayMember[]` · `birthdayLoading: boolean`.
+- API: `GET /api/get_birthdays.php` (sin params — usa el mes actual del servidor).
+
+**Interfaz `BirthdayMember`:**
+```typescript
+{ userId: number, fullName: string, birthDate: string,
+  birthDay: number, ward: string, stake: string, photoUrl: string | null }
+```
+
+**Modal "Todos los Cumpleañeros" (`showAllBirthdays`):**
+- Trigger: botón `"+N hermanos más cumplen años este mes — Ver todos →"` (solo cuando `birthdays.length > 5`).
+- **Mobile-First:** bottom sheet en móvil (`items-end`, `rounded-t-2xl`), centrado en sm+ (`sm:items-center`, `sm:rounded-2xl`, `sm:max-w-md`).
+- Altura máxima: `max-h-[88vh]` en móvil / `sm:max-h-[80vh]` en desktop. Lista interna con scroll.
+- Cada fila: avatar circular ámbar + nombre + día. Emoji 🎂 si es hoy, 🎁 si es otro día del mes.
+- Clic en fila: navega a `/directorio?userId={id}` + `setShowAllBirthdays(false)`.
+- Cierre: botón × (header) o clic en el overlay exterior (`onClick` en el fondo oscuro).
+
+---
 
 ### Reglas de seguridad del módulo:
-- `viewerUserId` se lee de `localStorage["cfs_session"].id` en el cliente (nunca del server)
-- La UI del formulario se oculta si el viewer es el propio cumpleañero
-- Unicidad: 1 mensaje por autor+destinatario+año (validado en backend)
-- `canvas-confetti` se importa dinámicamente para evitar SSR issues
+- `viewerUserId` se lee de `localStorage["cfs_session"].id` en el cliente — **nunca** del servidor.
+- El formulario de firmas se oculta si `viewerUserId === member.id` (el perfil es el propio).
+- Unicidad de firma: 1 mensaje por autor+destinatario+año → verificado en `post_wish.php` antes del INSERT.
+- XSS: React escapa automáticamente el contenido al renderizar `{w.message}` en JSX.
+- Inyección SQL: todos los endpoints usan PDO con `prepare()` + `execute([':param' => $valor])`.
+- `canvas-confetti` se importa dinámicamente (import dinámico) para evitar crash SSR de Next.js.
 
 ---
 
@@ -225,7 +349,18 @@ Ver detalle completo en la sección "🗄️ ESTRUCTURA DE TABLAS".
 - Genera saludo dinámico: "Buenos días/tardes/noches, [PrimerNombre]" según la hora del dispositivo.
 - Botón **Salir** limpia `cfs_session` y redirige a `/`.
 
-#### Las 6 Tarjetas
+#### Orden de renderizado del `<main>` (completo — post Migración 11)
+| Bloque | Contenido | Posición |
+| :--- | :--- | :--- |
+| 1 | Banner de bienvenida (saludo dinámico + versículo Mosíah 18:21) | Arriba |
+| 2 | Escritura del Día (carga de `get_today_scripture.php`) | Segundo |
+| 3 | **🎂 Celebrando la Vida** — tarjeta ámbar + modal de cumpleaños *(Mig. 11)* | Tercero |
+| 4 | Tarjeta "Tu Perfil" (botones Editar Datos / Fotos y Redes) | Cuarto |
+| 5 | Tarjeta "Privacidad de Cuenta" (Ocultar / Reactivar / Eliminar) | Quinto |
+| 6 | Tarjeta "Panel de Administración" (solo `role='admin'`) | Sexto |
+| 7 | Grid de tarjetas: El BOOK · Actividades · Mensajes | Abajo |
+
+#### Las Tarjetas de Navegación
 | # | Título | Destino | Estado | Visibilidad |
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | Tu Perfil | `/perfil?userId={id}` | ✅ Activo | Todos |
@@ -379,6 +514,44 @@ Dos botones compactos en el header: "Dashboard" (Link a `/dashboard`) y "Salir" 
 | **Endpoints** | `POST /api/submit_scripture.php` · `GET /api/get_scripture_queue.php` |
 
 Lee `userId` de `localStorage["cfs_session"]`. Envía texto + referencia. Tras éxito muestra la fecha asignada y refresca la cola de espera.
+
+---
+
+### `DirectoryClient.tsx` *(actualizado — Migración 11)*
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta** | `components/DirectoryClient.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Página** | `app/directorio/page.tsx` |
+| **Estado** | ✅ Activo — v3 con Módulo Cumpleaños |
+| **Endpoints** | `GET /api/get_directory.php` · `GET /api/birthday_wishes/get_wishes.php` · `POST /api/birthday_wishes/post_wish.php` |
+
+#### Estado del componente
+| Estado | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `members` | `Member[]` | Todos los miembros activos cargados desde `get_directory.php` |
+| `filtered` | `Member[]` (memo) | Resultado de filtros de género, edad, país y búsqueda |
+| `selected` | `Member \| null` | Miembro cuyo `MemberSheet` está abierto |
+| `focusWishes` | `boolean` | Si `true`, el Sheet hace scroll a `#libro-firmas` |
+| `viewerUserId` | `number \| null` | ID del usuario autenticado leído de `localStorage["cfs_session"].id` |
+| `genderFilter` | `string` | `"all" \| "M" \| "F"` |
+| `ageMinStr` / `ageMaxStr` | `string` | Valores de los inputs de edad (convertidos a int al filtrar) |
+| `country` | `string` | País seleccionado para filtrar (`"all"` = sin filtro) |
+| `query` | `string` | Texto de búsqueda libre |
+
+#### Insignias en el grid — 3 niveles de cumpleaños
+Ver tabla completa en la sección [🎂 MÓDULO → Insignias de cumpleaños en el grid].
+
+#### `MemberSheet` — sub-componente embebido
+- Muestra el perfil completo (galería, ward/stake, bio, WhatsApp, redes sociales).
+- Si `isBirthdayMonth(member.birthDate)`: renderiza la sección **"Celebrando la Vida"** con:
+  - Banner emoji+texto de cumpleaños.
+  - **Libro de Firmas**: lista de `BirthdayWish[]` (año actual) + formulario de nueva firma.
+  - Si `isBirthdayToday(member.birthDate)`: dispara `canvas-confetti` (importación dinámica, 160 partículas).
+  - Si `focusWishes === true`: scroll suave al `div#libro-firmas` con delay 380 ms.
+
+#### Funciones helper de fecha
+Ver tabla completa en la sección [🎂 MÓDULO → Helpers de fechas].
 
 ---
 

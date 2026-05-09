@@ -23,6 +23,9 @@ import {
   UserPlus,
   BookOpen,
   Trash2,
+  KeyRound,
+  Copy,
+  CheckCheck,
 } from "lucide-react"
 import { Button }  from "@/components/ui/button"
 import { Input }   from "@/components/ui/input"
@@ -188,6 +191,15 @@ export function AdminClient() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
   const [deleteError,   setDeleteError]   = useState<string | null>(null)
 
+  // ── Resetear contraseña ───────────────────────────────────────────────────
+  const [resetQuery,   setResetQuery]   = useState("")
+  const [resetTarget,  setResetTarget]  = useState<AdminUser | null>(null)
+  const [resetConfirm, setResetConfirm] = useState(false)
+  const [resetting,    setResetting]    = useState(false)
+  const [resetError,   setResetError]   = useState<string | null>(null)
+  const [tempPassword, setTempPassword] = useState<string | null>(null)
+  const [copied,       setCopied]       = useState(false)
+
   useEffect(() => {
     if (!session) return
     setLoadingPending(true)
@@ -346,6 +358,55 @@ export function AdminClient() {
     const start = (currentPage - 1) * PAGE_SIZE
     return filtered.slice(start, start + PAGE_SIZE)
   }, [filtered, currentPage])
+
+  // ── Reset: resultados de búsqueda (máx 5, excluye al admin actual) ────────
+  const resetResults = useMemo(() => {
+    const q = resetQuery.trim().toLowerCase()
+    if (q.length < 2) return []
+    return users
+      .filter((u) =>
+        (u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
+        u.id !== session?.id
+      )
+      .slice(0, 5)
+  }, [resetQuery, users, session])
+
+  async function handleResetPassword() {
+    if (!session || !resetTarget) return
+    setResetting(true)
+    setResetError(null)
+    try {
+      const res  = await fetch(`${API_BASE_URL}/api/admin/reset_password.php`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ requesterId: session.id, targetUserId: resetTarget.id }),
+      })
+      const json = await res.json()
+      if (json.status !== "success") throw new Error(json.message)
+      setTempPassword(json.data.tempPassword)
+      setResetConfirm(false)
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : "Error desconocido.")
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  function handleCopyPassword() {
+    if (!tempPassword) return
+    navigator.clipboard.writeText(tempPassword)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  function handleResetCancel() {
+    setResetQuery("")
+    setResetTarget(null)
+    setResetConfirm(false)
+    setResetError(null)
+    setTempPassword(null)
+    setCopied(false)
+  }
 
   // ── Accordion: fila expandida actualmente ─────────────────────────────────
   const [openId, setOpenId] = useState<number | null>(null)
@@ -738,6 +799,168 @@ export function AdminClient() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            BLOQUE 3 — Resetear Contraseña
+        ══════════════════════════════════════════════════════════════════ */}
+        <div id="seccion-reset-pass" className="border-t border-border/60 pt-2 scroll-mt-20" />
+
+        <div className="flex items-center gap-2">
+          <KeyRound className="h-5 w-5 text-primary shrink-0" />
+          <h2 className="font-bold text-foreground text-base">Resetear Contraseña</h2>
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-secondary/20 p-4 space-y-3">
+
+          {/* Buscador */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Buscar hermano por nombre o correo…"
+              value={resetQuery}
+              onChange={(e) => {
+                setResetQuery(e.target.value)
+                setResetTarget(null)
+                setResetConfirm(false)
+                setResetError(null)
+                setTempPassword(null)
+              }}
+              className="pl-9"
+              disabled={resetting}
+            />
+          </div>
+
+          {/* Resultados de búsqueda */}
+          {resetResults.length > 0 && !resetTarget && (
+            <div className="rounded-lg border border-border/60 overflow-hidden divide-y divide-border/60">
+              {resetResults.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => {
+                    setResetTarget(u)
+                    setResetQuery(u.fullName)
+                    setResetConfirm(true)
+                    setTempPassword(null)
+                    setResetError(null)
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left bg-background hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[u.status] ?? "bg-muted-foreground"}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate leading-tight">{u.fullName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`hidden sm:inline-flex text-xs shrink-0 border ${STATUS_BADGE[u.status] ?? STATUS_BADGE.inactive}`}
+                  >
+                    {STATUS_LABELS[u.status] ?? u.status}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Confirmación */}
+          {resetTarget && resetConfirm && !tempPassword && (
+            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/60 dark:bg-amber-950/20 px-4 py-3 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    ¿Resetear contraseña de {resetTarget.fullName}?
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {resetTarget.email} · Se generará una clave temporal. El usuario deberá cambiarla al ingresar.
+                  </p>
+                </div>
+              </div>
+
+              {resetError && (
+                <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{resetError}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs h-8 font-semibold"
+                  disabled={resetting}
+                  onClick={handleResetPassword}
+                >
+                  {resetting
+                    ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Generando…</>
+                    : <><KeyRound className="h-3.5 w-3.5 mr-1.5" />Resetear PASS</>
+                  }
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs h-8"
+                  disabled={resetting}
+                  onClick={handleResetCancel}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Contraseña temporal generada */}
+          {tempPassword && resetTarget && (
+            <div className="rounded-lg border border-emerald-300 dark:border-emerald-700 bg-emerald-50/60 dark:bg-emerald-950/20 px-4 py-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <p className="text-sm font-semibold text-foreground">
+                  Contraseña temporal para {resetTarget.fullName}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Copia esta clave y envíasela al hermano. Deberá cambiarla al iniciar sesión.
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 rounded-md bg-background border border-border px-3 py-2.5 text-sm font-mono font-bold text-foreground tracking-widest select-all break-all">
+                  {tempPassword}
+                </code>
+                <button
+                  type="button"
+                  onClick={handleCopyPassword}
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-md border border-border bg-background hover:bg-secondary/40 text-xs transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Copiar contraseña temporal"
+                >
+                  {copied
+                    ? <><CheckCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /><span className="text-emerald-700 dark:text-emerald-400">Copiada</span></>
+                    : <><Copy className="h-3.5 w-3.5" />Copiar</>
+                  }
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetCancel}
+                className="text-xs text-primary hover:underline focus-visible:outline-none"
+              >
+                Resetear otra contraseña
+              </button>
+            </div>
+          )}
+
+          {/* Estado vacío */}
+          {!resetQuery && !resetTarget && (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              Escribe el nombre o correo del hermano para buscar.
+            </p>
+          )}
+
+          {/* Sin resultados */}
+          {resetQuery.trim().length >= 2 && resetResults.length === 0 && !resetTarget && (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              No se encontraron usuarios para «{resetQuery.trim()}».
+            </p>
+          )}
+
+        </div>
 
         {/* ══════════════════════════════════════════════════════════════════
             BLOQUE 4 — Usuarios Registrados (últimos 5 + modal completo)

@@ -3,9 +3,9 @@
 // api/birthday_wishes/get_wishes.php — Leer mensajes del Libro de Firmas
 // =============================================================================
 // Método : GET
-// Params : ?recipientId=INT
-// Returns: { status, data: [{ wishId, authorId, authorName, message, createdAt }] }
-// Nota   : Solo devuelve mensajes del año calendario actual.
+// Params : ?recipientId=INT  (requerido)
+//          ?year=INT          (opcional — default: año actual del servidor)
+// Returns: { status, year: INT, data: [{ wishId, authorId, authorName, message, createdAt }] }
 // =============================================================================
 
 declare(strict_types=1);
@@ -26,11 +26,23 @@ if ($recipientId <= 0) {
     exit;
 }
 
+// Año opcional — default al año actual. Acepta cualquier año >= 2020.
+$currentYear = (int) date('Y');
+
+if (isset($_GET['year'])) {
+    $year = (int) $_GET['year'];
+    if ($year < 2020 || $year > $currentYear) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Año fuera de rango.']);
+        exit;
+    }
+} else {
+    $year = $currentYear;
+}
+
 try {
     $db  = new Database();
     $pdo = $db->getConnection();
-
-    $year = (int) date('Y');
 
     $stmt = $pdo->prepare("
         SELECT
@@ -59,7 +71,7 @@ try {
     }
     unset($row);
 
-    echo json_encode(['status' => 'success', 'data' => $rows]);
+    echo json_encode(['status' => 'success', 'year' => $year, 'data' => $rows]);
 
 } catch (PDOException $e) {
     http_response_code(500);

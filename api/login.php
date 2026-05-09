@@ -94,7 +94,7 @@ $pdo = $db->getConnection();
 //    password_hash se usa ÚNICAMENTE para verificación; nunca sale en respuesta.
 // -----------------------------------------------------------------------------
 $stmt = $pdo->prepare("
-    SELECT `id`, `full_name`, `email`, `password_hash`, `role`, `status`
+    SELECT `id`, `full_name`, `email`, `password_hash`, `role`, `status`, `must_change_password`
     FROM   `users`
     WHERE  `email` = :email
     LIMIT  1
@@ -130,10 +130,11 @@ echo json_encode([
     'status'  => 'success',
     'message' => 'Inicio de sesión exitoso.',
     'data'    => [
-        'id'       => (int) $user['id'],
-        'fullName' => $user['full_name'],
-        'email'    => $user['email'],
-        'role'     => $user['role']   ?? 'user',
-        'status'   => $user['status'] ?? 'active',
+        'id'                => (int) $user['id'],
+        'fullName'          => $user['full_name'],
+        'email'             => $user['email'],
+        'role'              => $user['role']              ?? 'user',
+        'status'            => $user['status']            ?? 'active',
+        'mustChangePassword'=> (bool) ($user['must_change_password'] ?? false),
     ]
 ]);

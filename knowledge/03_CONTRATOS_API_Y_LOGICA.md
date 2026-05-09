@@ -897,6 +897,196 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 
 ---
 
+---
+
+## 🎂 CONTRATOS DEL MÓDULO: CELEBRANDO LA VIDA (Migración 11)
+
+> **Contexto:** Estos tres endpoints implementan el sistema de cumpleaños. Todos requieren `status='active'` en los usuarios involucrados. No se usa autenticación Bearer — la identidad se confirma con `userId` entero positivo verificado contra la tabla `users`.
+
+---
+
+### Endpoint: `api/get_birthdays.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/get_birthdays.php`
+- **Autenticación:** Ninguna (todos los miembros activos pueden ver los cumpleaños)
+- **Alcance de DB:** `SELECT` en `users` LEFT JOIN `profiles` LEFT JOIN `profile_photos` (sort_order = 1). Filtra por `MONTH(birth_date) = :month` y `status = 'active'`.
+
+**Query Params:**
+```
+?month=INT   — opcional, 1–12. Default: mes actual del servidor (date('n'))
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "userId":    "int",
+      "fullName":  "string",
+      "birthDate": "string — YYYY-MM-DD (año real, ignorado en la lógica de fechas del front)",
+      "birthDay":  "int    — DAY(birth_date), día del mes (1–31)",
+      "ward":      "string — barrio, '' si no tiene perfil",
+      "stake":     "string — estaca, '' si no tiene perfil",
+      "photoUrl":  "string | null — URL de la foto principal (/uploads/...) o null"
+    }
+  ]
+}
+```
+
+> Array vacío `[]` si no hay miembros activos con cumpleaños en el mes solicitado.
+> El array viene ordenado por `DAY(birth_date) ASC` — el frontend puede mostrarlos del 1 al 31 sin reordenar.
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `month` fuera del rango 1–12 |
+| 405 | Método distinto de GET |
+| 500 | Error interno de servidor o DB |
+
+**Lógica de negocio:**
+- Solo usuarios con `status = 'active'` y `birth_date IS NOT NULL` son incluidos.
+- El filtro usa `MONTH(birth_date) = :month` — **no compara el año**, solo el mes. Esto es correcto por diseño: el módulo "ignora el año de nacimiento" (es el campo ⛔ fuente de verdad del mes+día).
+- La foto retornada es la de `sort_order = 1` (foto principal); `NULL` si el usuario no tiene fotos.
+
+---
+
+### Endpoint: `api/birthday_wishes/get_wishes.php`
+- **Método:** `GET`
+- **Ruta Completa:** `/api/birthday_wishes/get_wishes.php`
+- **Autenticación:** Ninguna (cualquier miembro puede leer el Libro de Firmas)
+- **Alcance de DB:** `SELECT` en `birthday_wishes` JOIN `users` WHERE `recipient_id = :recipientId AND YEAR(created_at) = :year`.
+
+**Query Params:**
+```
+?recipientId=INT   — requerido, entero positivo > 0
+?year=INT          — opcional, entero 2020–año_actual. Default: año actual del servidor.
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "year":   2026,
+  "data": [
+    {
+      "wishId":     "int    — ID del registro en birthday_wishes",
+      "authorId":   "int    — ID del usuario que escribió el mensaje",
+      "authorName": "string — full_name del autor (JOIN con users)",
+      "message":    "string — texto del mensaje (3–500 chars, sin HTML-encoding)",
+      "createdAt":  "string — YYYY-MM-DD HH:MM:SS"
+    }
+  ]
+}
+```
+
+> Array vacío `[]` si no hay mensajes para ese destinatario en el año solicitado.
+> Los mensajes se devuelven ordenados por `created_at ASC` (del más antiguo al más reciente).
+> El campo `year` en la respuesta confirma el año que fue consultado (útil para el frontend cuando navega por el historial).
+> Sin param `year`: devuelve el año actual → comportamiento idéntico al original.
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `recipientId` ausente, no numérico, o ≤ 0 |
+| 400 | `year` presente pero fuera de rango (< 2020 o > año actual) |
+| 405 | Método distinto de GET |
+| 500 | Error interno de servidor o DB |
+
+---
+
+### Endpoint: `api/birthday_wishes/get_available_years.php` *(nuevo — Álbum de Recuerdos)*
+- **Método:** `GET`
+- **Ruta Completa:** `/api/birthday_wishes/get_available_years.php`
+- **Autenticación:** Ninguna
+- **Alcance de DB:** `SELECT DISTINCT YEAR(created_at) AS year FROM birthday_wishes WHERE recipient_id = :recipientId ORDER BY year DESC`.
+
+**Query Params:**
+```
+?recipientId=INT   — requerido, entero positivo > 0
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "data": [2026, 2025, 2024]
+}
+```
+
+> Array plano de enteros ordenados DESC (más reciente primero).
+> Array vacío `[]` si el usuario no tiene ningún mensaje recibido todavía.
+> El frontend filtra el año actual de esta lista para determinar si hay "años anteriores" que mostrar en el Álbum de Recuerdos:
+> ```typescript
+> const pastYears = availableYears.filter(y => y !== new Date().getFullYear())
+> // Si pastYears.length > 0 → mostrar botón "Ver felicitaciones de años anteriores"
+> ```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `recipientId` ausente, no numérico, o ≤ 0 |
+| 405 | Método distinto de GET |
+| 500 | Error interno de servidor o DB |
+
+---
+
+### Endpoint: `api/birthday_wishes/post_wish.php`
+- **Método:** `POST`
+- **Content-Type:** `application/json`
+- **Ruta Completa:** `/api/birthday_wishes/post_wish.php`
+- **Autenticación:** Implícita — se verifica que `authorId` y `recipientId` existen y tienen `status='active'` en la tabla `users`.
+- **Alcance de DB:** SELECT de verificación + SELECT de unicidad + INSERT en `birthday_wishes`.
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "authorId":    "int    — requerido, ID del usuario que escribe (viewer autenticado)",
+  "recipientId": "int    — requerido, ID del cumpleañero (dueño del perfil)",
+  "message":     "string — requerido, 3–500 caracteres después de trim()"
+}
+```
+
+**Response Éxito — HTTP 201:**
+```json
+{
+  "status":  "success",
+  "message": "¡Mensaje enviado con amor!"
+}
+```
+
+**Response Error:**
+```json
+{
+  "status":  "error",
+  "message": "string — descripción del error"
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `authorId` o `recipientId` ≤ 0, o `authorId === recipientId`, o `message` < 3 chars tras `trim()` |
+| 404 | Uno o ambos usuarios no existen o no tienen `status='active'` |
+| 405 | Método distinto de POST |
+| 409 | El autor ya dejó un mensaje para ese destinatario en el año en curso |
+| 500 | Error interno de servidor o DB |
+
+**Reglas de negocio completas:**
+1. **Autofelicitación prohibida:** `authorId !== recipientId` verificado en backend. HTTP 400 si coinciden.
+2. **Usuarios activos:** Se ejecuta `SELECT COUNT(*) FROM users WHERE id IN (:id1, :id2) AND status = 'active'`. Si el resultado es < 2 → HTTP 404.
+3. **Unicidad anual:** Antes del INSERT se ejecuta `SELECT id FROM birthday_wishes WHERE author_id = :authorId AND recipient_id = :recipientId AND YEAR(created_at) = YEAR(CURDATE())`. Si existe → HTTP 409 con mensaje amigable: `"Ya dejaste un mensaje para este hermano(a) este año. ¡Gracias por tu amor!"`.
+4. **Longitud del mensaje:** `mb_substr(trim($message), 0, 500)` — truncado a 500 chars antes de cualquier validación. El mínimo requerido tras trim es 3 chars. Si no cumple → HTTP 400.
+5. **Sin HTML-encoding al almacenar:** El mensaje se guarda en texto plano. La capa React protege contra XSS al renderizar el texto via JSX (no `dangerouslySetInnerHTML`).
+6. **Payload JSON inválido:** Si `json_decode()` devuelve `null` (body no es JSON válido) → HTTP 400.
+
+**Flujo de frontend al enviar:**
+1. `POST /api/birthday_wishes/post_wish.php` con `{ authorId, recipientId, message }`.
+2. Si HTTP 201 → `setWishSuccess(true)` + refetch de `get_wishes.php` para actualizar la lista.
+3. Si HTTP 409 → muestra el mensaje de error en `wishError`.
+4. Si HTTP 4xx/5xx → muestra `wishError` genérico.
+
+---
+
 ## 🚨 ENDPOINTS CRÍTICOS Y SEGURIDAD (HALLAZGOS DE AUDITORÍA)
 
 * **Autenticación Dual:** El sistema usa `auth:api` (Laravel Passport/Bearer Token) para el ecosistema `/api/` y sesión nativa web para el panel interno.

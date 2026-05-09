@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   PenLine,
   Send,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input }  from "@/components/ui/input"
@@ -212,7 +213,7 @@ function MemberSheet({
 }) {
   const [photoIdx, setPhotoIdx] = useState(0)
 
-  // ── Estado del Libro de Firmas ────────────────────────────────────────────
+  // ── Estado del Libro de Firmas (año en curso) ────────────────────────────
   const [wishes,        setWishes]        = useState<BirthdayWish[]>([])
   const [wishesLoading, setWishesLoading] = useState(false)
   const [wishMessage,   setWishMessage]   = useState("")
@@ -220,26 +221,42 @@ function MemberSheet({
   const [wishError,     setWishError]     = useState<string | null>(null)
   const [wishSuccess,   setWishSuccess]   = useState(false)
 
+  // ── Estado del Álbum de Recuerdos (años anteriores) ──────────────────────
+  const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [showHistory,    setShowHistory]    = useState(false)
+  const [historyYear,    setHistoryYear]    = useState<number | null>(null)
+  const [historyWishes,  setHistoryWishes]  = useState<BirthdayWish[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
   // Ref para scroll automático al Libro de Firmas
   const wishesRef = useRef<HTMLDivElement>(null)
 
-  // Reset al cambiar de miembro
+  // Reset completo al cambiar de miembro
   useEffect(() => {
     setPhotoIdx(0)
     setWishes([])
     setWishMessage("")
     setWishError(null)
     setWishSuccess(false)
+    setAvailableYears([])
+    setShowHistory(false)
+    setHistoryYear(null)
+    setHistoryWishes([])
   }, [member?.id])
 
-  // ── Cargar mensajes del Libro de Firmas (solo en mes de cumpleaños) ───────
+  // ── Cargar mensajes del año en curso + años disponibles en paralelo ────────
   useEffect(() => {
     if (!open || !member || !isBirthdayMonth(member.birthDate)) return
     setWishesLoading(true)
-    fetch(`${API_BASE_URL}/api/birthday_wishes/get_wishes.php?recipientId=${member.id}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.status === "success") setWishes(json.data ?? [])
+    Promise.all([
+      fetch(`${API_BASE_URL}/api/birthday_wishes/get_wishes.php?recipientId=${member.id}`)
+        .then((r) => r.json()),
+      fetch(`${API_BASE_URL}/api/birthday_wishes/get_available_years.php?recipientId=${member.id}`)
+        .then((r) => r.json()),
+    ])
+      .then(([wishesJson, yearsJson]) => {
+        if (wishesJson.status === "success") setWishes(wishesJson.data ?? [])
+        if (yearsJson.status === "success")  setAvailableYears(yearsJson.data ?? [])
       })
       .catch(() => {})
       .finally(() => setWishesLoading(false))
@@ -299,17 +316,50 @@ function MemberSheet({
     }
   }
 
+  // ── Álbum de Recuerdos: cargar mensajes de un año específico ───────────────
+  async function fetchHistoryWishes(year: number) {
+    if (!member) return
+    setHistoryLoading(true)
+    setHistoryWishes([])
+    try {
+      const res  = await fetch(
+        `${API_BASE_URL}/api/birthday_wishes/get_wishes.php?recipientId=${member.id}&year=${year}`
+      )
+      const json = await res.json()
+      if (json.status === "success") setHistoryWishes(json.data ?? [])
+    } catch { /* silent */ } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  function handleHistoryYearSelect(year: number) {
+    setHistoryYear(year)
+    fetchHistoryWishes(year)
+  }
+
+  function handleToggleHistory() {
+    if (showHistory) { setShowHistory(false); return }
+    setShowHistory(true)
+    const currentYear = new Date().getFullYear()
+    const pastYears   = availableYears.filter((y) => y !== currentYear)
+    if (pastYears.length > 0 && historyYear === null) {
+      handleHistoryYearSelect(pastYears[0])
+    }
+  }
+
   if (!member) return null
 
   // Defensa total: allPhotos siempre es array después de normalizeMember
-  const photos     = member.allPhotos.length > 0 ? member.allPhotos : ([] as (string | null)[])
-  const hasPhotos  = photos.length > 0
-  const currentSrc = hasPhotos ? photos[photoIdx] : null
+  const photos      = member.allPhotos.length > 0 ? member.allPhotos : ([] as (string | null)[])
+  const hasPhotos   = photos.length > 0
+  const currentSrc  = hasPhotos ? photos[photoIdx] : null
 
-  const age        = calcAge(member.birthDate)
-  const badge      = memberBadge(member)
-  const location   = locationLabel(member)
-  const hasSocials = Object.values(member.socials).some(Boolean)
+  const age         = calcAge(member.birthDate)
+  const badge       = memberBadge(member)
+  const location    = locationLabel(member)
+  const hasSocials  = Object.values(member.socials).some(Boolean)
+  const currentYear = new Date().getFullYear()
+  const pastYears   = availableYears.filter((y) => y !== currentYear)
 
   return (
     <Sheet open={open} onOpenChange={(v) => { if (!v) onClose() }}>
@@ -544,6 +594,78 @@ function MemberSheet({
                   </div>
                 )}
               </div>
+
+              {/* ── Álbum de Recuerdos ─────────────────────────────────────── */}
+              {pastYears.length > 0 && (
+                <div className="border-t border-border/40 pt-4">
+
+                  {/* Toggle button */}
+                  <button
+                    onClick={handleToggleHistory}
+                    className="flex items-center gap-2 w-full text-left text-xs text-muted-foreground hover:text-foreground font-medium transition-colors group"
+                  >
+                    <span className="text-base leading-none">📖</span>
+                    <span className="flex-1">
+                      {showHistory ? "Ocultar años anteriores" : "Ver felicitaciones de años anteriores"}
+                    </span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${showHistory ? "rotate-180" : ""}`}
+                    />
+                  </button>
+
+                  {showHistory && (
+                    <div className="mt-4 space-y-4">
+
+                      {/* Selector de año */}
+                      <div className="flex flex-wrap gap-2">
+                        {pastYears.map((year) => (
+                          <button
+                            key={year}
+                            onClick={() => handleHistoryYearSelect(year)}
+                            className={[
+                              "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
+                              historyYear === year
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground",
+                            ].join(" ")}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Mensajes del año seleccionado */}
+                      {historyLoading ? (
+                        <div className="flex justify-center py-4">
+                          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        </div>
+                      ) : historyWishes.length > 0 ? (
+                        <div className="space-y-3">
+                          {historyWishes.map((w) => (
+                            <div
+                              key={w.wishId}
+                              className="bg-secondary/40 rounded-xl px-3.5 py-3 border border-border/40"
+                            >
+                              <p className="text-sm text-foreground leading-relaxed">
+                                &ldquo;{w.message}&rdquo;
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1.5 font-medium">
+                                — {w.authorName}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : historyYear !== null ? (
+                        <p className="text-xs text-muted-foreground italic text-center py-3">
+                          No hay mensajes guardados para {historyYear}.
+                        </p>
+                      ) : null}
+
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           )}
 

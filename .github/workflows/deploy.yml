@@ -3,7 +3,7 @@ name: 🚀 Deploy Conexión FRIENDS al Servidor FTP
 on:
   push:
     branches:
-      - main  # O 'master', dependiendo de cómo se llame tu rama principal
+      - main 
 
 jobs:
   build-and-deploy:
@@ -16,7 +16,7 @@ jobs:
       - name: ⚙️ Configurar Node.js (Next 16)
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Versión estable recomendada para Next 16+
+          node-version: '20'
 
       - name: 📦 Instalar dependencias
         run: npm ci || npm install
@@ -25,12 +25,12 @@ jobs:
         run: npm run build
 
       - name: 🔄 Preparar archivos para subir
-        # Aquí copiamos los PHP (asumiendo que están en una carpeta 'api') dentro de 'out' 
-        # para que se suba todo el paquete junto y ordenado.
         run: |
           mkdir -p out/api
           cp -R api/* out/api/ || true
           cp *.php out/ || true
+          cp .htaccess out/ || true
+          cp -R Manual out/Manual/ || true
 
       - name: 🚀 Subir por FTP al servidor
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -41,5 +41,10 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: ./out/
-          # Nota de Arquitecto: 'local-dir: ./out/' significa que SOLO el contenido
-          # de esta carpeta se subirá a la raíz de tu dominio friends.tecnidepot.com
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .env*
+            uploads/**
+            api/conexion.php

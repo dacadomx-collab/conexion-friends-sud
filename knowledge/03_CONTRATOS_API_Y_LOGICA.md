@@ -23,6 +23,175 @@
 
 ---
 
+## ✨ MÓDULO ENTRETEJIDOS — Contratos API (Migración 13)
+
+> **Principio:** Edificación mutua sin popularidad. Cero contadores públicos en todas las respuestas.
+
+---
+
+### Endpoint: `api/entretejidos/get_messages.php`
+- **Método:** `GET`
+- **Ruta completa:** `/api/entretejidos/get_messages.php`
+- **Autenticación:** Ninguna (lectura pública de perfiles activos)
+- **Alcance de DB:** SELECT en `woven_messages` + JOIN `users` + LEFT JOIN `profile_photos`
+
+**Params de query (GET):**
+```
+?recipientId=INT   — requerido
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status": "success",
+  "message": "",
+  "data": [
+    {
+      "messageId":      1,
+      "authorId":       42,
+      "authorName":     "Ana Pérez",
+      "authorPhotoUrl": "/uploads/profiles/user_42_xxx.jpg",
+      "promptKey":      "virtue",
+      "message":        "Lo que más admiro de ella es…",
+      "relationType":   "Barrio",
+      "createdAt":      "2026-05-14 10:30:00"
+    }
+  ]
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 200 | Éxito (array vacío si aún no hay mensajes) |
+| 400 | `recipientId` inválido |
+| 405 | Método distinto de GET |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/entretejidos/post_message.php`
+- **Método:** `POST`
+- **Ruta completa:** `/api/entretejidos/post_message.php`
+- **Autenticación:** Ninguna (validación de IDs activos en backend)
+- **Alcance de DB:** SELECT `users` + SELECT `woven_messages` (unicidad) + INSERT `woven_messages`
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "authorId":     "int — requerido",
+  "recipientId":  "int — requerido, distinto de authorId",
+  "promptKey":    "string — requerido, ∈ ['virtue','feeling','memory','light']",
+  "message":      "string — requerido, 10–500 chars",
+  "relationType": "string | null — opcional, máx. 100 chars"
+}
+```
+
+**Response Éxito — HTTP 201:**
+```json
+{
+  "status":  "success",
+  "message": "¡Tu mensaje quedó entretejido en su historia!",
+  "data": {
+    "messageId":      7,
+    "authorId":       42,
+    "authorName":     "Ana Pérez",
+    "authorPhotoUrl": "/uploads/profiles/user_42_xxx.jpg",
+    "promptKey":      "light",
+    "message":        "Siempre que hablo con ella…",
+    "relationType":   "Instituto",
+    "createdAt":      "2026-05-14 11:00:00"
+  }
+}
+```
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 201 | Mensaje creado |
+| 400 | IDs inválidos / `authorId === recipientId` / `promptKey` inválido / `message` < 10 chars |
+| 404 | Uno o ambos usuarios no existen o no son `status='active'` |
+| 405 | Método distinto de POST |
+| 409 | El autor ya tiene un mensaje en este perfil |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/entretejidos/get_virtues.php`
+- **Método:** `GET`
+- **Ruta completa:** `/api/entretejidos/get_virtues.php`
+- **Autenticación:** Ninguna
+- **Alcance de DB:** SELECT DISTINCT `virtue_recognitions`
+
+**⚠️ REGLA FUNDAMENTAL:** Esta respuesta NUNCA incluye conteos numéricos. Solo arrays de claves.
+
+**Params de query (GET):**
+```
+?recipientId=INT   — requerido
+?viewerId=INT      — opcional (para saber qué virtudes dio el viewer)
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "",
+  "data": {
+    "virtuesReceived": ["trust", "joy", "service"],
+    "viewerGave":      ["trust"]
+  }
+}
+```
+
+> `virtuesReceived` — virtudes que tiene el perfil (de cualquier persona). Sin números.
+> `viewerGave` — virtudes que el viewer específicamente dio (para el estado del toggle). Sin números.
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 200 | Éxito (arrays vacíos si no hay reconocimientos) |
+| 400 | `recipientId` inválido |
+| 405 | Método distinto de GET |
+| 500 | Error interno |
+
+---
+
+### Endpoint: `api/entretejidos/toggle_virtue.php`
+- **Método:** `POST`
+- **Ruta completa:** `/api/entretejidos/toggle_virtue.php`
+- **Autenticación:** Ninguna (validación de IDs activos en backend)
+- **Alcance de DB:** SELECT `users` + SELECT + DELETE/INSERT `virtue_recognitions`
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "authorId":    "int — requerido",
+  "recipientId": "int — requerido, distinto de authorId",
+  "virtueKey":   "string — requerido, ∈ ['trust','joy','light','service']"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "¡Virtud reconocida con amor!",
+  "data": {
+    "action":    "added",
+    "virtueKey": "trust"
+  }
+}
+```
+
+> `action` puede ser `"added"` (INSERT realizado) o `"removed"` (DELETE realizado).
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 200 | Toggle ejecutado (add o remove) |
+| 400 | IDs inválidos / `authorId === recipientId` / `virtueKey` inválido |
+| 404 | Uno o ambos usuarios no existen o no son `status='active'` |
+| 405 | Método distinto de POST |
+| 500 | Error interno |
+
+---
+
 ## 🛠️ ENDPOINTS REGISTRADOS (CONTRATOS)
 
 ### Endpoint: `api/register.php`
@@ -99,14 +268,17 @@
   "status": "success",
   "message": "Inicio de sesión exitoso.",
   "data": {
-    "id":       "int",
-    "fullName": "string",
-    "email":    "string",
-    "role":     "string — 'admin' | 'user'",
-    "status":   "string — 'active' | 'inactive' | 'blocked' | 'pending'"
+    "id":                 "int",
+    "fullName":           "string",
+    "email":              "string",
+    "role":               "string — 'admin' | 'user'",
+    "status":             "string — 'active' | 'inactive' | 'blocked' | 'pending'",
+    "mustChangePassword": "boolean — true si el admin reseteó la contraseña y el usuario debe crear una nueva (Migración 12)"
   }
 }
 ```
+
+> **Flujo `mustChangePassword`:** Si `true`, el frontend redirige al usuario a `/cambiar-contrasena` con prioridad sobre cualquier otra ruta (incluso `/pendiente`). El acceso a la plataforma queda bloqueado hasta que el usuario complete el cambio y el flag vuelva a `false`.
 
 **Response Error — HTTP 400 / 401 / 405 / 500:**
 ```json
@@ -896,6 +1068,96 @@ photos[]   — archivos (JPG, PNG, WebP); mínimo 2, máximo 5
 | 500 | Error interno / rollback |
 
 ---
+
+### Endpoint: `api/admin/reset_password.php` *(Migración 12 — Reset de Contraseña)*
+- **Método:** `POST`
+- **Ruta Completa:** `/api/admin/reset_password.php`
+- **Autenticación:** `requesterId` en body JSON — se verifica en BD que sea `role='admin'`. Si no → HTTP 403.
+- **Alcance de DB:** SELECT de verificación en `users` (requesterId + targetUserId) + UPDATE `password_hash` y `must_change_password`.
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "requesterId":  "int — requerido, ID del admin autenticado",
+  "targetUserId": "int — requerido, ID del usuario a quien se le resetea la contraseña"
+}
+```
+
+**Lógica de negocio:**
+1. Verifica que `requesterId` sea `role='admin'` y que `requesterId !== targetUserId` (admin no puede resetearse a sí mismo).
+2. Verifica que `targetUserId` exista en `users`.
+3. Genera contraseña temporal de 12 caracteres con `random_int()` (CSPRNG) — excluye caracteres ambiguos (0, O, l, I, 1).
+4. Aplica `password_hash($tempPassword, PASSWORD_BCRYPT, ['cost' => 12])`.
+5. `UPDATE users SET password_hash = :hash, must_change_password = 1 WHERE id = :targetUserId`.
+6. Devuelve `tempPassword` en texto plano **solo en esta única respuesta** — el admin la copia y se la envía al usuario manualmente.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Contraseña temporal generada correctamente.",
+  "data": {
+    "tempPassword": "string — contraseña temporal en texto plano (12 chars)",
+    "userName":     "string — full_name del usuario al que se le reseteó"
+  }
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `requesterId` o `targetUserId` inválidos (≤ 0) |
+| 400 | `requesterId === targetUserId` (auto-reset prohibido) |
+| 403 | `requesterId` no es `role='admin'` o no existe |
+| 404 | `targetUserId` no encontrado en `users` |
+| 405 | Método distinto de POST |
+| 500 | Error interno de servidor |
+
+> **Regla de seguridad:** `tempPassword` se expone SOLO en esta respuesta y SOLO al admin. **Nunca** se almacena en texto plano en la BD — solo el `password_hash`. El admin es responsable de comunicarle la clave al usuario por un canal seguro.
+> **Efecto en el login:** La próxima vez que el usuario inicie sesión, `login.php` devolverá `mustChangePassword: true` y el frontend lo redirigirá obligatoriamente a `/cambiar-contrasena`.
+
+---
+
+### Endpoint: `api/account/change_password_forced.php` *(Migración 12 — Cambio Obligatorio)*
+- **Método:** `POST`
+- **Ruta Completa:** `/api/account/change_password_forced.php`
+- **Autenticación:** `userId` en body — se verifica existencia y que `must_change_password = 1`. Previene uso arbitrario fuera del flujo de reset.
+- **Alcance de DB:** SELECT de verificación en `users` + UPDATE `password_hash` y `must_change_password`.
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "userId":      "int    — requerido, ID del usuario autenticado",
+  "newPassword": "string — requerida, mínimo 8 caracteres"
+}
+```
+
+**Lógica de negocio:**
+1. Verifica que `userId` sea entero positivo y `newPassword` tenga ≥ 8 chars.
+2. SELECT de `must_change_password` para el usuario: si vale `0` → HTTP 400 (operación no aplicable).
+3. `password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12])` + `unset($newPassword)`.
+4. `UPDATE users SET password_hash = :hash, must_change_password = 0 WHERE id = :userId`.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Contraseña actualizada correctamente. Ya puedes ingresar a la plataforma.",
+  "data":    []
+}
+```
+
+**Response Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `userId` ≤ 0, o `newPassword` < 8 caracteres |
+| 400 | El usuario no tiene `must_change_password = 1` (flag no activo — operación no aplicable) |
+| 404 | `userId` no encontrado en `users` |
+| 405 | Método distinto de POST |
+| 500 | Error interno de servidor |
+
+> **Flujo frontend:** En éxito, `ChangePasswordClient.tsx` actualiza `localStorage["cfs_session"]` con `mustChangePassword: false` y redirige a `/dashboard` tras 2 s.
+> `password_hash` **nunca** se incluye en ninguna respuesta al Front. La variable de texto plano se destruye con `unset()` tras el hash.
 
 ---
 

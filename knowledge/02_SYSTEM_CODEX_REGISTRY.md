@@ -9,6 +9,7 @@
 | Teléfono | `phone` | `phone` | String |
 | Fecha de nacimiento ⛔ | `birth_date` | `birthDate` | String (YYYY-MM-DD) |
 | Hash de contraseña | `password_hash` | *(nunca viaja al Front)* | String |
+| Cambio de contraseña requerido 🔒 | `must_change_password` | `mustChangePassword` | Bool |
 | Aceptó código conducta | `accepted_code_of_conduct` | `acceptedCodeOfConduct` | Bool |
 | Rol de usuario 🔒 | `role` | `role` | ENUM: `'admin'`\|`'user'` |
 | Estado de cuenta 🔒 | `status` | `status` | ENUM: `'active'`\|`'inactive'`\|`'blocked'`\|`'pending'` |
@@ -40,6 +41,7 @@
 - `phone`: VARCHAR(20) — Solo dígitos
 - `birth_date`: DATE — ⛔ Inmutable
 - `password_hash`: VARCHAR(255) — bcrypt cost 12
+- `must_change_password`: TINYINT(1) DEFAULT 0 — 🔒 Flag de seguridad: cuando vale `1`, el usuario debe crear una contraseña personal en el próximo login (activado por admin al resetear contraseña). *(Migración 12)*
 - `accepted_code_of_conduct`: TINYINT(1) — Siempre 1 al registro
 - `role`: ENUM('admin','user') DEFAULT 'user' — 🔒 Solo modificable por admins *(Migración 03)*
 - `status`: ENUM('active','inactive','blocked','pending') DEFAULT 'pending' — 🔒 Solo modificable por admins *(Migraciones 03 + 09)*. Al registrarse el usuario queda en `'pending'`; el admin lo activa a `'active'` al autorizar.
@@ -159,12 +161,170 @@
 > **Scripts:** `database/migracion_07_user_departures.sql` · `database/migracion_10_cleanup_whitelist_trazabilidad.sql`
 
 ## 🧠 REGISTRO SEMÁNTICO (VOCABULARIO CONTROLADO)
-- ✅ **Términos Permitidos:** `ward`, `stake`, `bio`, `showWhatsapp`, `userId`, `fullName`, `birthDate`, `country`, `state`, `city`, `invitePassword`, `newInvitePassword`, `requesterId`, `adminId`, `adminName`, `createdAt`, `plainCode`, `newStatus`, `accountStatus`, `userName`, `action`, `reason`, `departures`, `actedBy`, `targetUserId`, `authorizedAt`, `pendingUsers`, `welcomeRegistry`, `authorizeUser`, `deleteUserAdmin`, `allUsersOpen`, `allDepsOpen`, `deleteConfirm`, `deletingId`, `recipientId`, `authorId`, `authorName`, `wishId`, `wishMessage`, `birthDay`, `birthdays`, `birthdayLoading`, `wishes`, `wishesLoading`, `postingWish`, `wishSuccess`, `wishError`, `viewerUserId`
-- ❌ **Términos Prohibidos:** `barrio`, `estaca`, `descripcion`, `mostrarWhatsapp`, `id_usuario`, `nombre`, `fechaNacimiento`, `pais`, `estado`, `ciudad`, `municipio`, `masterPassword`, `gatePassword`, `invitationCode`, `plain_text`, `rawPassword`, `deleteUser`, `hideUser`, `deactivate`, `whitelistPhone`, `whitelistHistory`, `addWhitelist`, `importCsv`, `isUsed`, `addedBy`, `referenceName`
+- ✅ **Términos Permitidos:** `ward`, `stake`, `bio`, `showWhatsapp`, `userId`, `fullName`, `birthDate`, `country`, `state`, `city`, `invitePassword`, `newInvitePassword`, `requesterId`, `adminId`, `adminName`, `createdAt`, `plainCode`, `newStatus`, `accountStatus`, `userName`, `action`, `reason`, `departures`, `actedBy`, `targetUserId`, `authorizedAt`, `pendingUsers`, `welcomeRegistry`, `authorizeUser`, `deleteUserAdmin`, `allUsersOpen`, `allDepsOpen`, `deleteConfirm`, `deletingId`, `recipientId`, `authorId`, `authorName`, `wishId`, `wishMessage`, `birthDay`, `birthdays`, `birthdayLoading`, `wishes`, `wishesLoading`, `postingWish`, `wishSuccess`, `wishError`, `viewerUserId`, `mustChangePassword`, `resetPassword`, `tempPassword`, `messageId`, `promptKey`, `relationType`, `authorPhotoUrl`, `virtueKey`, `virtuesReceived`, `viewerGave`, `wovenMessages`, `wovenLoading`, `postingWoven`, `selectedPrompt`, `wovenText`, `wovenRelation`, `togglingVirtue`
+- ❌ **Términos Prohibidos:** `barrio`, `estaca`, `descripcion`, `mostrarWhatsapp`, `id_usuario`, `nombre`, `fechaNacimiento`, `pais`, `estado`, `ciudad`, `municipio`, `masterPassword`, `gatePassword`, `invitationCode`, `plain_text`, `rawPassword`, `deleteUser`, `hideUser`, `deactivate`, `whitelistPhone`, `whitelistHistory`, `addWhitelist`, `importCsv`, `isUsed`, `addedBy`, `referenceName`, `likes`, `hearts`, `counter`, `popularidad`, `reactions`
 
 ---
 
 ## 🧩 REGISTRO DE COMPONENTES FRONTEND
+
+---
+
+## ✨ MÓDULO: ENTRETEJIDOS (Perfil de Usuario) — Migración 13
+
+> **Propósito:** Reemplaza la lógica de "likes" y comentarios libres por edificación mutua y reconocimiento de virtudes basado en Mosíah 18:21.
+> **Fuente bíblica:** "Corazones entretejidos con unidad y amor" — Mosíah 18:21.
+> **Principio UX:** 🚫 Cero contadores públicos. No hay números visibles. Solo presencia cualitativa.
+> **Script de BD:** `database/migracion_13_entretejidos.sql`
+
+### Nueva tabla: `woven_messages`
+| Campo | Tipo | Notas |
+| :--- | :--- | :--- |
+| `id` | INT UNSIGNED AUTO_INCREMENT | PK |
+| `recipient_id` | INT NOT NULL | FK → `users.id` ON DELETE CASCADE |
+| `author_id` | INT NOT NULL | FK → `users.id` ON DELETE CASCADE |
+| `prompt_key` | ENUM(`'virtue'`,`'feeling'`,`'memory'`,`'light'`) | Prompt que guió el mensaje |
+| `message` | VARCHAR(500) NOT NULL | 10–500 chars, texto plano; React protege XSS |
+| `relation_type` | VARCHAR(100) NULL | Vínculo declarado ("Barrio", "Instituto", etc.) |
+| `created_at` | TIMESTAMP DEFAULT CURRENT_TIMESTAMP | |
+
+**Índices:** `idx_wm_recipient(recipient_id)` · `idx_wm_author(author_id)`
+
+**Restricciones de integridad:**
+> - `recipient_id ≠ author_id` — verificado en `post_message.php` antes del INSERT.
+> - Ambos usuarios deben tener `status = 'active'` — verificado con COUNT(*) = 2.
+> - **1 mensaje por autor+destinatario** (sin límite temporal) — verificado en PHP. Si ya existe → HTTP 409.
+
+---
+
+### Nueva tabla: `virtue_recognitions`
+| Campo | Tipo | Notas |
+| :--- | :--- | :--- |
+| `id` | INT UNSIGNED AUTO_INCREMENT | PK |
+| `recipient_id` | INT NOT NULL | FK → `users.id` ON DELETE CASCADE |
+| `author_id` | INT NOT NULL | FK → `users.id` ON DELETE CASCADE |
+| `virtue_key` | ENUM(`'trust'`,`'joy'`,`'light'`,`'service'`) | Insignia seleccionada |
+| `created_at` | TIMESTAMP DEFAULT CURRENT_TIMESTAMP | |
+
+**Restricción DB:** `UNIQUE KEY uq_vr (recipient_id, author_id, virtue_key)` — un autor da cada virtud máximo una vez por perfil. Compatible MySQL 5.7+.
+
+**Índices:** `idx_vr_recipient(recipient_id)` · `idx_vr_author(author_id)`
+
+**Regla de negocio crítica:**
+> - `recipient_id ≠ author_id` — verificado en `toggle_virtue.php`.
+> - **NUNCA se exponen conteos** — el API devuelve solo arrays de claves (`virtuesReceived`, `viewerGave`), sin números.
+> - Toggle idempotente: si la fila existe → DELETE; si no → INSERT.
+
+---
+
+### Catálogo de prompts guiados
+| `prompt_key` | Texto del prompt | Emoji |
+| :--- | :--- | :--- |
+| `virtue` | ¿Qué virtud destacarías de esta persona? | ✨ |
+| `feeling` | ¿Cómo te hace sentir cuando convives con ella? | 🌸 |
+| `memory` | ¿Qué momento juntos te ha marcado? | 🌿 |
+| `light` | ¿De qué manera ha añadido luz a tu vida? | ☀️ |
+
+### Catálogo de insignias de virtud
+| `virtue_key` | Emoji | Label visible |
+| :--- | :--- | :--- |
+| `trust` | 🌿 | Inspira confianza |
+| `joy` | ☀️ | Transmite alegría |
+| `light` | 📖 | Comparte luz |
+| `service` | 🤝 | Sirve con amor |
+
+---
+
+### Nuevos endpoints:
+| Endpoint | Método | Descripción |
+| :--- | :--- | :--- |
+| `api/entretejidos/get_messages.php` | GET `?recipientId=INT` | Mensajes entretejidos públicos del perfil |
+| `api/entretejidos/post_message.php` | POST JSON | Publicar mensaje guiado `{authorId, recipientId, promptKey, message, relationType?}` |
+| `api/entretejidos/get_virtues.php` | GET `?recipientId=INT&viewerId=INT` | Constelación de virtudes (sin conteos) |
+| `api/entretejidos/toggle_virtue.php` | POST JSON | Toggle `{authorId, recipientId, virtueKey}` → `{action: 'added'|'removed', virtueKey}` |
+
+---
+
+### Componente: `WovenSection.tsx`
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta** | `components/WovenSection.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Usado en** | `MemberSheet` dentro de `components/DirectoryClient.tsx` |
+| **Estado** | ✅ Activo — Migración 13 |
+| **Endpoints** | `GET api/entretejidos/get_messages.php` · `GET api/entretejidos/get_virtues.php` · `POST api/entretejidos/post_message.php` · `POST api/entretejidos/toggle_virtue.php` |
+
+#### Props
+| Prop | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `memberId` | `number` | ID del perfil visualizado |
+| `memberName` | `string` | Nombre completo del miembro (se usa el primer nombre en la UI) |
+| `viewerUserId` | `number \| null` | ID del usuario autenticado (leído de `cfs_session`) |
+
+#### Estado interno
+| Estado | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `messages` | `WovenMessage[]` | Mensajes entretejidos del perfil |
+| `messagesLoading` | `boolean` | Spinner de carga inicial |
+| `virtuesReceived` | `string[]` | Virtudes presentes en este perfil (de cualquier persona) |
+| `viewerGave` | `string[]` | Virtudes que el viewer específicamente reconoció |
+| `virtuesLoading` | `boolean` | Spinner de carga de virtudes |
+| `togglingVirtue` | `string \| null` | Virtud que se está toggling (spinner local por badge) |
+| `selectedPrompt` | `PromptKey \| null` | Paso 1 del formulario: prompt seleccionado |
+| `wovenText` | `string` | Paso 2: texto del mensaje |
+| `wovenRelation` | `string` | Paso 2: relación declarada |
+| `posting` | `boolean` | Durante el POST del mensaje |
+| `postError` | `string \| null` | Error del POST |
+| `postSuccess` | `boolean` | Estado de éxito — oculta el formulario |
+
+#### Interfaz `WovenMessage`
+```typescript
+interface WovenMessage {
+  messageId:      number
+  authorId:       number
+  authorName:     string
+  authorPhotoUrl: string | null
+  promptKey:      'virtue' | 'feeling' | 'memory' | 'light'
+  message:        string
+  relationType:   string | null
+  createdAt:      string
+}
+```
+
+#### Flujo UX del formulario (2 pasos)
+1. **Paso 1:** Grid de 4 tarjetas con los prompts guiados — el usuario selecciona uno.
+2. **Paso 2:** Textarea con el prompt visible como contexto + selector de relación (opcional) + botón de envío.
+3. **Éxito:** Pantalla de confirmación inline; formulario oculto; mensaje añadido en tiempo real al inicio de la lista.
+
+#### Reglas de seguridad del módulo:
+- `viewerUserId` se lee de `localStorage["cfs_session"].id` — nunca del servidor.
+- El formulario solo es visible si `viewerUserId !== member.id` y el viewer aún no ha publicado.
+- El toggle de virtudes solo está activo si `viewerUserId !== member.id`.
+- Inyección SQL: todos los endpoints usan PDO con `prepare()` + `execute([':param' => $valor])`.
+- XSS: React escapa automáticamente al renderizar `{msg.message}` en JSX.
+- **NUNCA se devuelven ni muestran conteos numéricos** — ni en el API ni en la UI.
+
+#### Posición en `MemberSheet` (orden de renderizado):
+1. Galería de fotos
+2. Ward / Stake / Bio
+3. Contacto (WhatsApp)
+4. Redes sociales
+5. **✨ Entretejidos** ← SIEMPRE visible
+6. 🎂 Celebrando la Vida ← solo en mes de cumpleaños
+
+---
+
+### Mapeo de variables — Módulo Entretejidos
+| Concepto | DB / Backend (snake_case) | Frontend (camelCase) | Tipo |
+| :--- | :--- | :--- | :--- |
+| ID del mensaje | `id` | `messageId` | Int |
+| Prompt del mensaje | `prompt_key` | `promptKey` | ENUM string |
+| Tipo de relación | `relation_type` | `relationType` | String nullable |
+| Foto del autor | `photo_url` (JOIN `profile_photos`) | `authorPhotoUrl` | String nullable |
+| Clave de virtud | `virtue_key` | `virtueKey` | ENUM string |
+| Virtudes presentes | *(DISTINCT query)* | `virtuesReceived` | `string[]` |
+| Virtudes del viewer | *(WHERE author_id)* | `viewerGave` | `string[]` |
+| Acción del toggle | *(respuesta PHP)* | `action` | `'added'`\|`'removed'` |
 
 ---
 
@@ -315,6 +475,7 @@ La sección de cumpleaños se renderiza **solo si `isBirthdayMonth(member.birthD
 | `/mensajes` | `app/mensajes/page.tsx` | ✅ Activo (shell) | Bandeja en construcción |
 | `/admin` | `app/admin/page.tsx` | ✅ Activo | Panel de Administración — solo `role='admin'` |
 | `/pendiente` | `app/pendiente/page.tsx` | ✅ Activo | Sala de espera para usuarios con `status='pending'` — onboarding pendiente de aprobación |
+| `/cambiar-contrasena` | `app/cambiar-contrasena/page.tsx` | ✅ Activo | Pantalla de cambio obligatorio de contraseña — bloqueante hasta completar. Solo accesible si `mustChangePassword=true` en sesión *(Migración 12)* |
 | `/inspiracion` | `app/inspiracion/page.tsx` | ✅ Activo | Formulario de escritura + cola de espera |
 | `/codigo-de-conducta` | `app/codigo-de-conducta/page.tsx` | ✅ Activo | Página legal |
 | `/terminos` | `app/terminos/page.tsx` | ✅ Activo | Página legal |
@@ -582,6 +743,8 @@ Ver tabla completa en la sección [🎂 MÓDULO → Helpers de fechas].
 | `api/get_birthdays.php` | GET `?month=INT` (optional) | Cumpleañeros del mes (default: mes actual). Devuelve `userId, fullName, birthDate, birthDay, ward, stake, photoUrl`. Solo `status='active'` |
 | `api/birthday_wishes/get_wishes.php` | GET `?recipientId=INT` | Mensajes del Libro de Firmas para un cumpleañero en el año actual. Devuelve `wishId, authorId, authorName, message, createdAt` |
 | `api/birthday_wishes/post_wish.php` | POST JSON `{authorId, recipientId, message}` | Guarda un mensaje de felicitación. Validaciones: autor≠destinatario, ambos activos, un mensaje por autor+destinatario por año, 3-500 chars |
+| `api/admin/reset_password.php` | POST JSON `{requesterId, targetUserId}` | Admin genera contraseña temporal (12 chars CSPRNG, bcrypt cost 12) y activa `must_change_password=1`. Devuelve `tempPassword` en texto plano solo en esta respuesta — solo `admin` *(Migración 12)* |
+| `api/account/change_password_forced.php` | POST JSON `{userId, newPassword}` | Usuario con `must_change_password=1` establece su nueva contraseña (mín. 8 chars); hace `password_hash` con bcrypt y limpia el flag a `0` *(Migración 12)* |
 
 ---
 
@@ -626,7 +789,10 @@ Ver tabla completa en la sección [🎂 MÓDULO → Helpers de fechas].
 - **NO incluye** ningún link, tab ni referencia a registro — aislamiento total.
 - Link "Solicita una invitación" → `router.push("/acceso")` (único link externo al formulario).
 - Usa patrón estándar: `AbortController(15 s)` + `parseJsonResponse` + `navigating = true`.
-- En éxito: `localStorage.setItem("cfs_session", JSON.stringify(result.data))` → `router.push("/dashboard")`.
+- En éxito: `localStorage.setItem("cfs_session", JSON.stringify(result.data))`.
+  - Si `result.data.mustChangePassword === true` → `router.push("/cambiar-contrasena")` *(Migración 12)*.
+  - Si `result.data.status === 'pending'` → `router.push("/pendiente")`.
+  - Caso base → `router.push("/dashboard")`.
 - Error local (campo vacío): validación inline antes de llamar al fetch.
 
 ---
@@ -655,6 +821,36 @@ Ver tabla completa en la sección [🎂 MÓDULO → Helpers de fechas].
 
 ---
 
+### `ChangePasswordClient.tsx` *(Migración 12 — Cambio Obligatorio de Contraseña)*
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta componente** | `components/ChangePasswordClient.tsx` |
+| **Ruta página** | `app/cambiar-contrasena/page.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Estado** | ✅ Activo |
+| **Endpoint** | `POST /api/account/change_password_forced.php` |
+
+#### Comportamiento
+- Al montar: lee `localStorage["cfs_session"]`. Si no existe sesión, redirige a `/`. Si `mustChangePassword !== true`, redirige a `/dashboard` (página no accesible sin la bandera activa).
+- Muestra un **aviso ámbar** de seguridad explicando que el acceso está bloqueado hasta completar el cambio.
+- Formulario con dos campos `Input type="password"` (nueva contraseña + confirmación), cada uno con toggle de visibilidad.
+- Validación en tiempo real: indicador verde/rojo de coincidencia. Botón submit deshabilitado hasta que ambos campos coincidan y cumplan mínimo 8 chars.
+- En éxito HTTP 200: actualiza `localStorage["cfs_session"]` con `mustChangePassword: false` → redirige a `/dashboard` tras 2 s.
+- `password_hash` **nunca** viaja al frontend; el hash se calcula en `change_password_forced.php`.
+
+#### Estado interno
+| Estado | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `session` | `SessionData \| null` | Datos de sesión leídos de `cfs_session` |
+| `newPassword` | `string` | Campo nueva contraseña |
+| `confirmPassword` | `string` | Campo confirmación |
+| `showNew` / `showConfirm` | `boolean` | Toggle visibilidad de cada campo |
+| `isLoading` | `boolean` | Durante el POST al endpoint |
+| `error` | `string \| null` | Error de validación o de API |
+| `success` | `boolean` | Reemplaza el formulario con pantalla de éxito |
+
+---
+
 ### `ProfileTabs.tsx`
 | Atributo | Valor |
 | :--- | :--- |
@@ -672,15 +868,16 @@ Tabs de navegación visual entre "Datos Personales" (`/perfil?userId=`) y "Fotos
 | **Tipo** | Client Component (`"use client"`) |
 | **Página** | `app/admin/page.tsx` |
 | **Estado** | ✅ Activo |
-| **Endpoints** | `GET /api/get_users_admin.php` · `POST /api/update_user_admin.php` · `GET /api/admin/get_pending_users.php` · `POST /api/admin/authorize_user.php` · `GET /api/admin/get_departures.php` · `POST /api/admin/delete_user_admin.php` · `GET /api/admin/get_welcome_registry.php` |
+| **Endpoints** | `GET /api/get_users_admin.php` · `POST /api/update_user_admin.php` · `GET /api/admin/get_pending_users.php` · `POST /api/admin/authorize_user.php` · `GET /api/admin/get_departures.php` · `POST /api/admin/delete_user_admin.php` · `GET /api/admin/get_welcome_registry.php` · `POST /api/admin/reset_password.php` |
 
-#### Orden de renderizado del `<main>` (5 bloques)
+#### Orden de renderizado del `<main>` (6 bloques)
 | Bloque | Contenido | Posición |
 | :--- | :--- | :--- |
 | 1 | KPI Cards — 6 tarjetas + panel desplegable de admins | Arriba |
 | 2 | `InvitationPasswordAdmin` (contraseña activa + modal historial) | Segundo |
 | 2b | **Pendientes de Aprobación** — tabla + botón "Autorizar" + modal "Registro de Bienvenida" | Tercero |
-| 4 | **Usuarios Registrados** — últimos 5 (preview) + "Ver a todos los hermanos" → modal completo con búsqueda, paginación, edición y eliminación | Cuarto |
+| 3 | **Resetear Contraseña** — buscador inline, confirmación ámbar, botón "Resetear PASS", display de clave copiable con `navigator.clipboard` *(Migración 12)* | Cuarto |
+| 4 | **Usuarios Registrados** — últimos 5 (preview) + "Ver a todos los hermanos" → modal completo con búsqueda, paginación, edición y eliminación | Quinto |
 | 5 | **Bajas / Ocultos** — últimos 5 + traceabilidad + "Ver todos" → modal historial completo | Abajo |
 
 #### KPIs — 6 tarjetas (grid responsivo)

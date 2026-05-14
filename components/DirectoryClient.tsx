@@ -32,6 +32,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { API_BASE_URL } from "@/lib/api"
+import { WovenSection } from "@/components/WovenSection"
 
 // ---------------------------------------------------------------------------
 // Tipos — alineados exactamente con get_directory.php v3
@@ -510,6 +511,13 @@ function MemberSheet({
               </div>
             </div>
           )}
+
+          {/* ── Sección Entretejidos ────────────────────────────────────── */}
+          <WovenSection
+            memberId={member.id}
+            memberName={member.fullName}
+            viewerUserId={viewerUserId}
+          />
 
           {/* ── Sección Celebrando la Vida ──────────────────────────────── */}
           {isBirthdayMonth(member.birthDate) && (

@@ -1,5 +1,7 @@
 https://friends.tecnidepot.com/
 
+Prueba para voler a subir todo al servidor por medio de la carpeta Out
+
 Local:
 C:\xampp\htdocs\CONEXION_FRIENDS_SUD\Conexion_FS_Dev
 

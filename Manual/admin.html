@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guía del Coordinador — Conexión FRIENDS SUD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#4f46e5', light: '#818cf8', dark: '#3730a3' },
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    .section-anchor { scroll-margin-top: 5rem; }
+    .nav-link:hover { color: #4f46e5; }
+    details summary { cursor: pointer; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    .paso {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.9rem; height: 1.9rem; border-radius: 50%;
+      background: #f59e0b; color: white; font-weight: 700;
+      font-size: .8rem; flex-shrink: 0;
+    }
+    .paso-indigo {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.9rem; height: 1.9rem; border-radius: 50%;
+      background: #4f46e5; color: white; font-weight: 700;
+      font-size: .8rem; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased">
+
+  <!-- ENCABEZADO FIJO -->
+  <header class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-700 flex items-center justify-center shrink-0">
+        <span class="text-white font-black text-xs leading-none">COORD</span>
+      </div>
+      <div>
+        <p class="font-bold text-slate-900 text-sm leading-tight">Conexión FRIENDS SUD</p>
+        <p class="text-xs text-indigo-500 font-semibold leading-tight">Guía del Coordinador</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-4xl mx-auto px-4 py-8 flex gap-8">
+
+    <!-- NAVEGACIÓN LATERAL -->
+    <aside class="hidden lg:block w-52 shrink-0">
+      <nav class="sticky top-24 space-y-0.5 text-sm">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 px-2">En esta guía</p>
+        <a href="#llamado"     class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🛡️ Tu Llamado</a>
+        <a href="#pulso"       class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📊 El Pulso del Rebaño</a>
+        <a href="#bienvenida"  class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">⏳ Dar la Bienvenida</a>
+        <a href="#registro"    class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📋 Registro Histórico</a>
+        <a href="#cuidado"     class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">👥 Cuidado de Miembros</a>
+        <a href="#bajas"       class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📉 Registro de Salidas</a>
+        <a href="#contrasena"  class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🔐 Ayuda con Acceso</a>
+        <a href="#puerta"      class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🗝️ La Llave de la Puerta</a>
+        <a href="#principios"  class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">⚠️ Principios del Cargo</a>
+        <a href="#estados"     class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📌 Referencia Rápida</a>
+      </nav>
+    </aside>
+
+    <!-- CONTENIDO -->
+    <main class="flex-1 min-w-0 space-y-14">
+
+      <!-- PORTADA -->
+      <section id="llamado" class="section-anchor">
+        <div class="rounded-2xl bg-gradient-to-br from-indigo-700 to-violet-700 text-white px-6 py-10 shadow-lg">
+          <p class="text-4xl mb-3">🛡️</p>
+          <h1 class="text-2xl font-bold leading-tight mb-2">Guía del Coordinador</h1>
+          <p class="text-indigo-100 text-sm leading-relaxed max-w-lg">
+            Esta guía es para los líderes y coordinadores de <strong>Conexión FRIENDS SUD</strong>.
+            Aquí encontrarás todo lo necesario para cuidar bien a los miembros de la comunidad y mantener
+            el espacio seguro, ordenado y lleno del Espíritu.
+          </p>
+          <div class="mt-6 bg-white/15 border border-white/20 rounded-xl px-4 py-3 text-sm italic text-indigo-100">
+            "Apacienta mis ovejas." — Juan 21:16
+          </div>
+        </div>
+
+        <div class="mt-5 rounded-xl bg-indigo-50 border border-indigo-200 px-5 py-4">
+          <p class="font-semibold text-indigo-800 text-sm mb-2">🔒 ¿Quién es Coordinador?</p>
+          <p class="text-sm text-indigo-700 leading-relaxed">
+            Solo los miembros con el rol de <strong>Coordinador (Admin)</strong> tienen acceso al Panel de Coordinación.
+            Este rol únicamente puede ser otorgado o retirado por otro coordinador desde dentro del panel.
+            <strong>Nunca compartas el enlace directo al panel con nadie fuera del liderazgo.</strong>
+          </p>
+        </div>
+      </section>
+
+      <!-- EL PULSO DEL REBAÑO -->
+      <section id="pulso" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>📊</span> El Pulso del Rebaño</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Un buen pastor conoce el estado de sus ovejas."</p>
+
+        <p class="text-sm text-slate-600 leading-relaxed mb-5">
+          Al entrar al Panel de Coordinación, lo primero que verás es un resumen del estado actual de la comunidad.
+          Son seis tarjetas de un vistazo, colocadas en la parte más alta del panel para que siempre sepas cómo está el rebaño.
+        </p>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-widest">Miembros</p>
+            <p class="text-lg font-bold text-slate-900 mt-1">Todos los registros</p>
+          </div>
+          <div class="bg-white rounded-xl border border-emerald-200 shadow-sm p-4">
+            <p class="text-xs text-emerald-500 font-semibold uppercase tracking-widest">Activos</p>
+            <p class="text-lg font-bold text-emerald-700 mt-1">Presentes en El BOOK</p>
+          </div>
+          <div class="bg-white rounded-xl border border-indigo-200 shadow-sm p-4">
+            <p class="text-xs text-indigo-500 font-semibold uppercase tracking-widest">Coordinadores</p>
+            <p class="text-lg font-bold text-indigo-700 mt-1">Líderes activos</p>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <p class="text-xs text-slate-400 font-semibold uppercase tracking-widest">Ocultos</p>
+            <p class="text-lg font-bold text-slate-600 mt-1">Perfil pausado</p>
+          </div>
+          <div class="bg-white rounded-xl border border-red-200 shadow-sm p-4">
+            <p class="text-xs text-red-400 font-semibold uppercase tracking-widest">Salidas</p>
+            <p class="text-lg font-bold text-red-600 mt-1">Cuentas cerradas</p>
+          </div>
+          <div class="bg-white rounded-xl border border-amber-200 shadow-sm p-4">
+            <p class="text-xs text-amber-500 font-semibold uppercase tracking-widest">Esperando</p>
+            <p class="text-lg font-bold text-amber-600 mt-1">Pendientes de bienvenida</p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-100">
+            <p class="font-semibold text-slate-700 text-sm">Orden del Panel de Coordinación</p>
+          </div>
+          <div class="divide-y divide-slate-100 text-sm">
+            <div class="px-5 py-3 flex gap-3 items-start"><span class="font-bold text-primary shrink-0">1.</span><div><strong>El Pulso del Rebaño</strong> — las seis tarjetas de resumen.</div></div>
+            <div class="px-5 py-3 flex gap-3 items-start"><span class="font-bold text-primary shrink-0">2.</span><div><strong>La Llave de la Puerta</strong> — gestión de la Contraseña de Invitación.</div></div>
+            <div class="px-5 py-3 flex gap-3 items-start"><span class="font-bold text-primary shrink-0">3.</span><div><strong>🟡 Dar la Bienvenida</strong> — nuevos registros esperando aprobación.</div></div>
+            <div class="px-5 py-3 flex gap-3 items-start"><span class="font-bold text-primary shrink-0">4.</span><div><strong>Ayuda con Acceso</strong> — recuperación de contraseñas.</div></div>
+            <div class="px-5 py-3 flex gap-3 items-start"><span class="font-bold text-primary shrink-0">5.</span><div><strong>Cuidado de Miembros</strong> — lista completa con búsqueda y gestión.</div></div>
+            <div class="px-5 py-3 flex gap-3 items-start"><span class="font-bold text-primary shrink-0">6.</span><div><strong>Registro de Salidas</strong> — historial de quiénes se fueron y cuándo.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DAR LA BIENVENIDA -->
+      <section id="bienvenida" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>⏳</span> Dar la Bienvenida Oficial</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Recibid a los unos a los otros, como también Cristo nos recibió." — Romanos 15:7</p>
+
+        <div class="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 mb-5">
+          <p class="font-semibold text-amber-800 text-sm mb-1">¿Qué significa "Dar la Bienvenida"?</p>
+          <p class="text-sm text-amber-700 leading-relaxed">
+            Cuando alguien se registra, su cuenta queda en espera. No puede ver El BOOK ni interactuar
+            con la comunidad hasta que tú, como coordinador, confirmes que es un miembro real del grupo.
+            La tarjeta de resumen te avisará cuántos están esperando.
+          </p>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso mt-0.5">1</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              Ve a la sección <strong>"Dar la Bienvenida"</strong> en el Panel. Verás una tabla con el nombre,
+              correo, teléfono y fecha de registro de cada persona en espera.
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso mt-0.5">2</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              <strong>Verifica que conoces a la persona:</strong> ¿Es parte del grupo presencial? ¿Reconoces
+              su nombre y teléfono? Si tienes dudas, pregunta al liderazgo antes de aprobar.
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso mt-0.5">3</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              Toca el botón <strong>"Dar la Bienvenida"</strong>. En ese momento:
+              <ul class="list-disc list-inside mt-2 text-slate-500 text-xs space-y-1">
+                <li>La cuenta se activa y el miembro entra a la comunidad.</li>
+                <li>Se registra automáticamente en el <strong>Historial de Bienvenidas</strong> con la fecha y tu nombre.</li>
+                <li>El próximo inicio de sesión del miembro lo llevará directo a su Cuartel General.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 rounded-xl bg-red-50 border border-red-200 px-5 py-4">
+          <p class="font-semibold text-red-700 text-sm mb-1">🚨 Si no reconoces a alguien</p>
+          <p class="text-sm text-red-600 leading-relaxed">
+            Si el registro no corresponde a ningún miembro real del grupo, <strong>no apruebes</strong>.
+            Puedes eliminar esa cuenta desde la sección de Cuidado de Miembros.
+            Proteger la privacidad de la comunidad es una responsabilidad sagrada de este cargo.
+          </p>
+        </div>
+      </section>
+
+      <!-- REGISTRO HISTÓRICO -->
+      <section id="registro" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>📋</span> El Registro Histórico de Bienvenidas</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"El libro de memoria es parte de la herencia de Israel."</p>
+
+        <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Cada vez que das la bienvenida a un miembro, se crea un registro permanente: el nombre del miembro,
+            su correo y teléfono en ese momento, quién lo aprobó y cuándo. Este registro es el <strong>acta oficial
+            de membresía</strong> de la plataforma.
+          </p>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Puedes consultar el historial completo en cualquier momento con el botón
+            <strong>"Ver Registro de Bienvenidas"</strong>, en la misma sección de aprobaciones.
+          </p>
+          <div class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-500">
+            El registro es inmutable: ni tú ni el sistema pueden modificarlo después de crearse.
+            Es la memoria fiel de la comunidad.
+          </div>
+        </div>
+      </section>
+
+      <!-- CUIDADO DE MIEMBROS -->
+      <section id="cuidado" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>👥</span> Cuidado de los Miembros</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Conoce el estado de tus ovejas, y mira con cuidado por tus rebaños." — Proverbios 27:23</p>
+
+        <p class="text-sm text-slate-600 leading-relaxed mb-4">
+          Desde la sección <strong>"Cuidado de Miembros"</strong> puedes ver la lista completa de todos los
+          registros con un buscador y paginación. Al expandir un perfil, puedes ajustar ciertos datos
+          que solo el coordinador puede gestionar.
+        </p>
+
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden mb-5">
+          <div class="bg-slate-50 px-5 py-3 border-b border-slate-200">
+            <p class="font-semibold text-slate-700 text-sm">Lo que puedes ajustar</p>
+          </div>
+          <div class="divide-y divide-slate-100 text-sm">
+            <div class="px-5 py-3 grid sm:grid-cols-2 gap-2">
+              <div>
+                <p class="font-medium text-slate-700">Rol del miembro</p>
+                <p class="text-slate-500 text-xs">Coordinador o Miembro regular.</p>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold">Coordinador</span>
+                <span class="text-slate-300">•</span>
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">Miembro</span>
+              </div>
+            </div>
+            <div class="px-5 py-3 grid sm:grid-cols-2 gap-2">
+              <div>
+                <p class="font-medium text-slate-700">Estado de la cuenta</p>
+                <p class="text-slate-500 text-xs">Activo, Pausado o Bloqueado.</p>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Activo</span>
+                <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">Pausado</span>
+                <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Bloqueado</span>
+              </div>
+            </div>
+            <div class="px-5 py-3 grid sm:grid-cols-2 gap-2">
+              <div>
+                <p class="font-medium text-slate-700">Fecha de ingreso al grupo</p>
+                <p class="text-slate-500 text-xs">Define las marcas de Nuevo / Confianza en El BOOK.</p>
+              </div>
+              <div class="text-slate-500 text-xs flex items-center">
+                ≤ 6 meses → ✨ Nuevo · ≥ 12 meses → 🤝 Confianza
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-red-50 border border-red-200 shadow-sm overflow-hidden">
+          <div class="bg-red-100 px-5 py-3 border-b border-red-200">
+            <p class="font-semibold text-red-800 text-sm flex items-center gap-2">⚠️ Cerrar una cuenta definitivamente</p>
+          </div>
+          <div class="p-5 text-sm text-slate-700 space-y-3">
+            <p>
+              El botón <strong>"Cerrar cuenta definitivamente"</strong> elimina toda la información de ese miembro:
+              sus fotos, redes, mensajes y datos personales. Esta acción queda registrada con tu nombre en el
+              historial de salidas.
+            </p>
+            <div class="rounded-lg bg-red-100 border border-red-200 px-4 py-3 text-xs text-red-800">
+              🔒 <strong>Protección de cargo:</strong> Ningún coordinador puede cerrar ni degradar su propia cuenta.
+              Tampoco hay papelera de reciclaje — si tienes dudas, considera solo pausar la cuenta.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REGISTRO DE SALIDAS -->
+      <section id="bajas" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>📉</span> Registro de Salidas</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Toda partida merece ser recordada con dignidad."</p>
+
+        <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Toda salida de la plataforma queda registrada, ya sea que el miembro mismo decidió irse,
+            o que un coordinador tomó la acción. Este registro protege la transparencia del liderazgo.
+          </p>
+          <div class="space-y-2.5">
+            <div class="rounded-lg bg-slate-50 border border-slate-200 px-4 py-3">
+              <p class="font-semibold text-sm text-slate-700 mb-1">👤 El miembro eligió irse</p>
+              <p class="text-xs text-slate-500">Usó "Ocultar mi cuenta" o "Eliminar mi cuenta" desde su Cuartel General. Aparece como acción propia.</p>
+            </div>
+            <div class="rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3">
+              <p class="font-semibold text-sm text-indigo-700 mb-1">🛡️ Acción del coordinador</p>
+              <p class="text-xs text-indigo-600">Un coordinador cambió el estado o cerró la cuenta desde el panel. El nombre del coordinador queda grabado en el registro.</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400">
+            En el registro verás: nombre del miembro, tipo de acción (pausa o cierre), razón si la dio, quién actuó y cuándo.
+          </p>
+        </div>
+      </section>
+
+      <!-- AYUDA CON ACCESO -->
+      <section id="contrasena" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🔐</span> Ayuda con el Acceso — Contraseña Temporal</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Un buen pastor no deja a la oveja perdida afuera del redil."</p>
+
+        <p class="text-sm text-slate-600 leading-relaxed mb-5">
+          Cuando un miembro olvida su contraseña personal, tú puedes generarle una contraseña temporal
+          de acceso para que pueda entrar y crear la suya propia.
+        </p>
+
+        <div class="space-y-3">
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso-indigo mt-0.5">1</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              En el Panel, busca la sección <strong>"Ayuda con Acceso"</strong>. Escribe el nombre o correo del miembro en el buscador y selecciónalo.
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso-indigo mt-0.5">2</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              Confirma que es la persona correcta en el aviso que aparece, y toca el botón de generar.
+              El sistema creará una contraseña temporal segura de 12 caracteres.
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso-indigo mt-0.5">3</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              La contraseña aparece <strong>una sola vez</strong> en pantalla con un botón para copiarla.
+              <div class="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                ⚠️ Cópiala y compártela de forma privada con el miembro (en persona o mensaje directo).
+                Si cierras la pantalla sin copiarla, deberás generar una nueva.
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso-indigo mt-0.5">4</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              La próxima vez que el miembro entre con esa contraseña, la plataforma lo llevará a una pantalla
+              para que cree su propia contraseña personal antes de continuar.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-4">
+          <p class="font-semibold text-emerald-800 text-sm mb-1">✅ ¿Qué ocurre en el sistema?</p>
+          <ul class="text-sm text-emerald-700 space-y-1 list-disc list-inside">
+            <li>La contraseña temporal se protege con cifrado seguro.</li>
+            <li>Se activa una señal de "cambio obligatorio" en la cuenta del miembro.</li>
+            <li>La contraseña en texto plano solo aparece una vez en tu pantalla y nunca se guarda en claro.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- LA LLAVE DE LA PUERTA -->
+      <section id="puerta" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🗝️</span> La Llave de la Puerta de Entrada</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Una puerta cerrada protege a toda la casa."</p>
+
+        <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <p class="text-sm text-slate-600 leading-relaxed">
+            La <strong>Contraseña de Invitación</strong> es la primera llave que cualquier persona necesita
+            para siquiera llegar a la pantalla de registro. Sin ella, la plataforma no es accesible.
+            Como coordinador, tú controlas esta contraseña y puedes cambiarla cuando sea necesario.
+          </p>
+          <div class="space-y-3 text-sm text-slate-600">
+            <div class="flex gap-3 items-start"><span class="paso-indigo shrink-0">1</span><span>En el Panel, sección <strong>"La Llave de la Puerta"</strong>, escribe la nueva contraseña (mínimo 6 caracteres).</span></div>
+            <div class="flex gap-3 items-start"><span class="paso-indigo shrink-0">2</span><span>Confirma el cambio. La nueva contraseña entra en vigor <strong>de inmediato</strong>. La anterior deja de funcionar al instante.</span></div>
+            <div class="flex gap-3 items-start"><span class="paso-indigo shrink-0">3</span><span>Comparte la nueva contraseña con los miembros del grupo por los canales seguros del liderazgo.</span></div>
+          </div>
+          <div class="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800">
+            💡 <strong>Recomendación:</strong> Cambia la contraseña periódicamente o cuando alguien salga del grupo
+            para evitar que personas ajenas intenten registrarse.
+          </div>
+          <p class="text-xs text-slate-400">
+            También puedes ver el historial completo de cambios anteriores con la fecha y el coordinador que los hizo.
+            El texto de cada contraseña anterior está disponible solo para el liderazgo.
+          </p>
+        </div>
+      </section>
+
+      <!-- PRINCIPIOS DEL CARGO -->
+      <section id="principios" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>⚠️</span> Principios del Cargo</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"El que es fiel en lo poco, también lo será en lo mucho." — Lucas 16:10</p>
+
+        <div class="space-y-3">
+          <div class="flex gap-4 items-start bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <span class="text-2xl shrink-0">🚫</span>
+            <div class="text-sm">
+              <p class="font-semibold text-slate-800">No compartas el acceso al panel</p>
+              <p class="text-slate-500">Solo quienes tienen el rol de Coordinador deben conocer el enlace al panel. Para añadir un nuevo coordinador, hazlo desde dentro del panel.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 items-start bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <span class="text-2xl shrink-0">🔒</span>
+            <div class="text-sm">
+              <p class="font-semibold text-slate-800">Protege las contraseñas temporales</p>
+              <p class="text-slate-500">Compártelas en privado — nunca en grupos de WhatsApp ni canales donde puedan verlas personas no autorizadas.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 items-start bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <span class="text-2xl shrink-0">✅</span>
+            <div class="text-sm">
+              <p class="font-semibold text-slate-800">Verifica siempre antes de aprobar</p>
+              <p class="text-slate-500">El Registro de Bienvenidas lleva tu nombre para siempre. Solo aprueba a quienes conoces personalmente como miembros del grupo.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 items-start bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <span class="text-2xl shrink-0">⚠️</span>
+            <div class="text-sm">
+              <p class="font-semibold text-slate-800">Las salidas definitivas no tienen vuelta atrás</p>
+              <p class="text-slate-500">No existe papelera de reciclaje. Si tienes duda sobre cerrar una cuenta, primero pausa al miembro. Cerrar es permanente.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 items-start bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+            <span class="text-2xl shrink-0">📋</span>
+            <div class="text-sm">
+              <p class="font-semibold text-slate-800">El registro te protege a ti también</p>
+              <p class="text-slate-500">El historial de salidas con tu nombre es una herramienta de trazabilidad para el liderazgo. Úsala con sabiduría y transparencia.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REFERENCIA RÁPIDA -->
+      <section id="estados" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>📌</span> Referencia Rápida</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">Los estados de cuenta que verás en el panel</p>
+
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden mb-5">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+            <p class="font-semibold text-slate-700 text-sm">¿Qué significa cada estado?</p>
+          </div>
+          <div class="divide-y divide-slate-100 text-sm">
+            <div class="px-5 py-3 flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold shrink-0">En espera</span>
+              <span class="text-slate-600">Recién registrado. Esperando que un coordinador dé la bienvenida oficial.</span>
+            </div>
+            <div class="px-5 py-3 flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold shrink-0">Activo</span>
+              <span class="text-slate-600">Miembro bienvenido. Visible en El BOOK y con acceso completo.</span>
+            </div>
+            <div class="px-5 py-3 flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold shrink-0">Pausado</span>
+              <span class="text-slate-600">Perfil oculto temporalmente. La cuenta existe pero no aparece en El BOOK.</span>
+            </div>
+            <div class="px-5 py-3 flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold shrink-0">Bloqueado</span>
+              <span class="text-slate-600">Cuenta bloqueada por el coordinador. El miembro no puede iniciar sesión.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+            <p class="font-semibold text-slate-700 text-sm">Las marcas que asigna el sistema</p>
+          </div>
+          <div class="divide-y divide-slate-100 text-sm">
+            <div class="px-5 py-3 flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded-full bg-amber-500 text-white text-xs font-semibold shrink-0">✨ Nuevo</span>
+              <span class="text-slate-600">La fecha de ingreso al grupo es de hace 6 meses o menos.</span>
+            </div>
+            <div class="px-5 py-3 flex items-center gap-3">
+              <span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-semibold shrink-0">🤝 Confianza</span>
+              <span class="text-slate-600">La fecha de ingreso al grupo es de hace 12 meses o más.</span>
+            </div>
+            <div class="px-5 py-3 flex items-start gap-3">
+              <span class="text-xs text-slate-400 mt-0.5 shrink-0">Nota:</span>
+              <span class="text-slate-500 text-xs leading-relaxed">
+                La fecha de ingreso al grupo es el único dato que activa estas marcas.
+                Para que aparezcan, debes registrarla en el perfil del miembro desde el panel de Cuidado de Miembros.
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PIE -->
+      <footer class="border-t border-slate-200 pt-8 pb-4 text-center">
+        <p class="text-xs text-slate-400">Guía del Coordinador — Conexión FRIENDS SUD</p>
+        <p class="text-xs text-slate-400 mt-1 italic">"Apacienta mis ovejas." — Juan 21:16</p>
+      </footer>
+
+    </main>
+  </div>
+
+</body>
+</html>

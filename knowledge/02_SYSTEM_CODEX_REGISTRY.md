@@ -161,12 +161,92 @@
 > **Scripts:** `database/migracion_07_user_departures.sql` · `database/migracion_10_cleanup_whitelist_trazabilidad.sql`
 
 ## 🧠 REGISTRO SEMÁNTICO (VOCABULARIO CONTROLADO)
-- ✅ **Términos Permitidos:** `ward`, `stake`, `bio`, `showWhatsapp`, `userId`, `fullName`, `birthDate`, `country`, `state`, `city`, `invitePassword`, `newInvitePassword`, `requesterId`, `adminId`, `adminName`, `createdAt`, `plainCode`, `newStatus`, `accountStatus`, `userName`, `action`, `reason`, `departures`, `actedBy`, `targetUserId`, `authorizedAt`, `pendingUsers`, `welcomeRegistry`, `authorizeUser`, `deleteUserAdmin`, `allUsersOpen`, `allDepsOpen`, `deleteConfirm`, `deletingId`, `recipientId`, `authorId`, `authorName`, `wishId`, `wishMessage`, `birthDay`, `birthdays`, `birthdayLoading`, `wishes`, `wishesLoading`, `postingWish`, `wishSuccess`, `wishError`, `viewerUserId`, `mustChangePassword`, `resetPassword`, `tempPassword`, `messageId`, `promptKey`, `relationType`, `authorPhotoUrl`, `virtueKey`, `virtuesReceived`, `viewerGave`, `wovenMessages`, `wovenLoading`, `postingWoven`, `selectedPrompt`, `wovenText`, `wovenRelation`, `togglingVirtue`
+- ✅ **Términos Permitidos:** `ward`, `stake`, `bio`, `showWhatsapp`, `userId`, `fullName`, `birthDate`, `country`, `state`, `city`, `invitePassword`, `newInvitePassword`, `requesterId`, `adminId`, `adminName`, `createdAt`, `plainCode`, `newStatus`, `accountStatus`, `userName`, `action`, `reason`, `departures`, `actedBy`, `targetUserId`, `authorizedAt`, `pendingUsers`, `welcomeRegistry`, `authorizeUser`, `deleteUserAdmin`, `allUsersOpen`, `allDepsOpen`, `deleteConfirm`, `deletingId`, `recipientId`, `authorId`, `authorName`, `wishId`, `wishMessage`, `birthDay`, `birthdays`, `birthdayLoading`, `wishes`, `wishesLoading`, `postingWish`, `wishSuccess`, `wishError`, `viewerUserId`, `mustChangePassword`, `resetPassword`, `tempPassword`, `messageId`, `promptKey`, `relationType`, `authorPhotoUrl`, `virtueKey`, `virtuesReceived`, `viewerGave`, `wovenMessages`, `wovenLoading`, `postingWoven`, `selectedPrompt`, `wovenText`, `wovenRelation`, `togglingVirtue`, `interactionsSummary`, `previewNames`, `hasVirtues`, `hasAny`, `highlightsLoading`
 - ❌ **Términos Prohibidos:** `barrio`, `estaca`, `descripcion`, `mostrarWhatsapp`, `id_usuario`, `nombre`, `fechaNacimiento`, `pais`, `estado`, `ciudad`, `municipio`, `masterPassword`, `gatePassword`, `invitationCode`, `plain_text`, `rawPassword`, `deleteUser`, `hideUser`, `deactivate`, `whitelistPhone`, `whitelistHistory`, `addWhitelist`, `importCsv`, `isUsed`, `addedBy`, `referenceName`, `likes`, `hearts`, `counter`, `popularidad`, `reactions`
 
 ---
 
 ## 🧩 REGISTRO DE COMPONENTES FRONTEND
+
+---
+
+## 🔔 MÓDULO: NOTIFICACIONES EDIFICANTES (Dashboard Highlights) — Migración 14
+
+> **Propósito:** Sección del Dashboard que informa al usuario sobre las interacciones positivas recibidas (mensajes entretejidos, virtudes reconocidas y firmas de cumpleaños), fomentando la edificación mutua sin contadores públicos.
+> **Posición:** Entre el Banner de Bienvenida y la Escritura del Día en `DashboardClient.tsx`.
+> **Principio UX:** El módulo solo es visible si hay interacciones. Si no las hay, muestra una invitación suave a explorar El BOOK.
+> **Regla de Virtudes:** NUNCA se exponen conteos de `virtue_recognitions` — solo `hasVirtues: bool`.
+
+### Nuevo endpoint:
+| Endpoint | Método | Descripción |
+| :--- | :--- | :--- |
+| `api/dashboard/get_interactions_summary.php` | GET `?userId=INT` | Resumen de interacciones recibidas por el usuario autenticado |
+
+### Consultas SQL del endpoint
+- `woven_messages`: `COUNT(*)` total + `JOIN users LIMIT 3 ORDER BY created_at DESC` para `previewNames`.
+- `birthday_wishes`: igual que woven_messages, pero filtrado con `YEAR(created_at) = YEAR(CURDATE())` (solo año en curso).
+- `virtue_recognitions`: `SELECT EXISTS(SELECT 1 FROM virtue_recognitions WHERE recipient_id = :userId LIMIT 1)` — solo existencia, nunca conteo.
+
+### Componente: `DashboardHighlights.tsx`
+| Atributo | Valor |
+| :--- | :--- |
+| **Ruta** | `components/DashboardHighlights.tsx` |
+| **Tipo** | Client Component (`"use client"`) |
+| **Usado en** | `components/DashboardClient.tsx` |
+| **Estado** | ✅ Activo |
+| **Endpoint** | `GET api/dashboard/get_interactions_summary.php` |
+
+#### Props
+| Prop | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `userId` | `number \| null` | ID del usuario autenticado. `null` mientras la sesión se carga. |
+
+#### Estado interno
+| Estado | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `summary` | `InteractionsSummary \| null` | Respuesta del endpoint |
+| `loading` | `boolean` | Durante el fetch inicial |
+
+#### Interfaz `InteractionsSummary`
+```typescript
+interface InteractionsSummary {
+  wovenMessages:  { total: number; previewNames: string[] }
+  birthdayWishes: { total: number; previewNames: string[] }
+  hasVirtues:     boolean
+  hasAny:         boolean
+}
+```
+
+#### Helper `formatNames(names, total)`
+Convierte los nombres preview + total en texto natural:
+- `total=1` → `"Ana"`
+- `total=2` → `"Ana y Juan"`
+- `total=4, names=["Ana","Juan"]` → `"Ana, Juan y 2 más"`
+
+#### Comportamiento por estado
+| Estado | Render |
+| :--- | :--- |
+| `userId === null` o `loading` | `null` — sin render |
+| `!hasAny` (usuario sin interacciones) | Invitación suave: "Explora El BOOK y entretejer tu historia…" |
+| `hasAny === true` | Tarjeta edificante con filas por tipo (testimonios, virtudes, cumpleaños) |
+
+#### Orden de renderizado del Dashboard (actualizado)
+| Bloque | Contenido | Posición |
+| :--- | :--- | :--- |
+| 1 | Banner de bienvenida (saludo + Mosíah 18:21) | Arriba |
+| **2** | **🔔 Notificaciones Edificantes** ← **NUEVO** | **Segundo** |
+| 3 | Escritura del Día | Tercero |
+| 4 | 🎂 Celebrando la Vida (solo si hay cumpleañeros) | Cuarto |
+| 5 | Tarjeta "Tu Perfil" | Quinto |
+| 6 | Tarjeta "Privacidad de Cuenta" | Sexto |
+| 7 | Tarjeta "Panel de Administración" (solo admin) | Séptimo |
+| 8 | Grid de tarjetas: El BOOK · Actividades · Mensajes | Abajo |
+
+#### Reglas de seguridad:
+- `userId` llega como prop desde `DashboardClient` — ya validado desde `localStorage["cfs_session"]`.
+- El endpoint no expone datos de terceros: solo las interacciones del `userId` pasado.
+- Virtudes: solo `hasVirtues: bool`. Nunca conteos en respuesta de API ni en UI.
+- Inyección SQL: PDO con `prepare()` + `execute()`.
 
 ---
 
@@ -745,6 +825,11 @@ Ver tabla completa en la sección [🎂 MÓDULO → Helpers de fechas].
 | `api/birthday_wishes/post_wish.php` | POST JSON `{authorId, recipientId, message}` | Guarda un mensaje de felicitación. Validaciones: autor≠destinatario, ambos activos, un mensaje por autor+destinatario por año, 3-500 chars |
 | `api/admin/reset_password.php` | POST JSON `{requesterId, targetUserId}` | Admin genera contraseña temporal (12 chars CSPRNG, bcrypt cost 12) y activa `must_change_password=1`. Devuelve `tempPassword` en texto plano solo en esta respuesta — solo `admin` *(Migración 12)* |
 | `api/account/change_password_forced.php` | POST JSON `{userId, newPassword}` | Usuario con `must_change_password=1` establece su nueva contraseña (mín. 8 chars); hace `password_hash` con bcrypt y limpia el flag a `0` *(Migración 12)* |
+| `api/entretejidos/get_messages.php` | GET `?recipientId=INT` | Mensajes Entretejidos públicos del perfil *(Migración 13)* |
+| `api/entretejidos/post_message.php` | POST JSON `{authorId, recipientId, promptKey, message, relationType?}` | Publicar mensaje guiado en el perfil de otro *(Migración 13)* |
+| `api/entretejidos/get_virtues.php` | GET `?recipientId=INT&viewerId=INT` | Constelación de virtudes — solo presencia, nunca conteos *(Migración 13)* |
+| `api/entretejidos/toggle_virtue.php` | POST JSON `{authorId, recipientId, virtueKey}` | Toggle de reconocimiento de virtud → `{action, virtueKey}` *(Migración 13)* |
+| `api/dashboard/get_interactions_summary.php` | GET `?userId=INT` | Resumen de interacciones recibidas para el Dashboard Highlights *(Migración 14)* |
 
 ---
 

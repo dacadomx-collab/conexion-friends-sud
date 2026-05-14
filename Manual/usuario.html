@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guía del Miembro — Conexión FRIENDS SUD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: { DEFAULT: '#4f46e5', light: '#818cf8', dark: '#3730a3' },
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    html { scroll-behavior: smooth; }
+    .section-anchor { scroll-margin-top: 5rem; }
+    .nav-link:hover { color: #4f46e5; }
+    details summary { cursor: pointer; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    .paso {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.9rem; height: 1.9rem; border-radius: 50%;
+      background: #4f46e5; color: white; font-weight: 700;
+      font-size: .8rem; flex-shrink: 0;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased">
+
+  <!-- ENCABEZADO FIJO -->
+  <header class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
+        <span class="text-white font-black text-sm leading-none">CF</span>
+      </div>
+      <div>
+        <p class="font-bold text-slate-900 text-sm leading-tight">Conexión FRIENDS SUD</p>
+        <p class="text-xs text-slate-400 leading-tight">Guía del Miembro</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-4xl mx-auto px-4 py-8 flex gap-8">
+
+    <!-- NAVEGACIÓN LATERAL (solo escritorio) -->
+    <aside class="hidden lg:block w-52 shrink-0">
+      <nav class="sticky top-24 space-y-0.5 text-sm">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 px-2">En esta guía</p>
+        <a href="#bienvenida"   class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📖 Bienvenida</a>
+        <a href="#puerta"       class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🔑 La Puerta de Entrada</a>
+        <a href="#primeros"     class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">✍️ Tus Primeros Pasos</a>
+        <a href="#espera"       class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">⏳ Sala de Espera</a>
+        <a href="#perfil"       class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">👤 Tu Presentación</a>
+        <a href="#cuartel"      class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🏠 Tu Cuartel General</a>
+        <a href="#book"         class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📒 El BOOK</a>
+        <a href="#escritura"    class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">📜 Escritura del Día</a>
+        <a href="#cumpleanos"   class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🎂 Celebrando la Vida</a>
+        <a href="#entretejidos" class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">✨ Entretejidos</a>
+        <a href="#interacciones" class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🔔 Tus Interacciones</a>
+        <a href="#privacidad"   class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">🛡️ Tu Privacidad</a>
+        <a href="#preguntas"    class="nav-link flex gap-2 px-2 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">❓ Preguntas</a>
+      </nav>
+    </aside>
+
+    <!-- CONTENIDO -->
+    <main class="flex-1 min-w-0 space-y-14">
+
+      <!-- PORTADA -->
+      <section id="bienvenida" class="section-anchor">
+        <div class="rounded-2xl bg-gradient-to-br from-primary to-indigo-700 text-white px-6 py-10 shadow-lg">
+          <p class="text-4xl mb-3">📖</p>
+          <h1 class="text-2xl font-bold leading-tight mb-2">Guía del Miembro</h1>
+          <p class="text-indigo-100 text-sm leading-relaxed max-w-lg">
+            Bienvenido a <strong>Conexión FRIENDS SUD</strong>, el directorio privado y sagrado de los
+            Jóvenes Adultos Solteros de La Iglesia de Jesucristo de los Santos de los Últimos Días.
+            Esta guía te acompañará en cada paso de tu camino dentro de la comunidad.
+          </p>
+          <div class="mt-6 bg-white/15 border border-white/20 rounded-xl px-4 py-3 text-sm italic text-indigo-100">
+            "…que sus corazones estuviesen entretejidos con unidad y amor los unos para con los otros."
+            <span class="not-italic font-semibold"> — Mosíah 18:21</span>
+          </div>
+        </div>
+
+        <div class="mt-5 rounded-xl bg-amber-50 border border-amber-200 px-5 py-4">
+          <p class="font-semibold text-amber-800 text-sm mb-1">💛 Antes de comenzar</p>
+          <p class="text-sm text-amber-700 leading-relaxed">
+            Conexión FRIENDS SUD es un espacio <strong>exclusivo para miembros del grupo</strong>.
+            Para entrar necesitas una <strong>Contraseña de Invitación</strong> que comparte el liderazgo del grupo.
+            Si no la tienes, pregunta a un líder o coordinador de tu grupo de Jóvenes Adultos Solteros.
+          </p>
+        </div>
+      </section>
+
+      <!-- LA PUERTA DE ENTRADA -->
+      <section id="puerta" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🔑</span> La Puerta de Entrada</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"La puerta es estrecha, pero el camino dentro es de hermandad."</p>
+
+        <div class="space-y-4">
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <p class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="paso">1</span> Llegar a la plataforma
+            </p>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Cuando visites la dirección de Conexión FRIENDS en tu celular o computadora, lo primero que verás
+              es una pantalla de bienvenida con un campo de contraseña. Esta es la <strong>Puerta de Entrada</strong>:
+              el primer cuidado que tenemos para proteger la privacidad de toda nuestra comunidad.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <p class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="paso">2</span> Escribir la Contraseña de Invitación
+            </p>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Escribe la contraseña que el liderazgo de tu grupo compartió contigo. Esta contraseña puede cambiar
+              de vez en cuando — si la tuya no funciona, simplemente pide la nueva a tu coordinador.
+            </p>
+            <div class="mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700 leading-relaxed">
+              ⚠️ Por seguridad, tienes <strong>3 intentos</strong>. Si los tres fallan, tu conexión quedará
+              bloqueada por <strong>3 horas</strong> de forma automática. Verifica bien la contraseña antes de intentarlo.
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <p class="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <span class="paso">3</span> Ya eres miembro: Inicia Sesión
+            </p>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Si ya tienes una cuenta, después de pasar la Puerta de Entrada verás el formulario de inicio de sesión.
+              Escribe tu <strong>correo electrónico</strong> y tu <strong>contraseña personal</strong> y entra directo
+              a tu Cuartel General. Si olvidaste tu contraseña, un administrador del grupo puede ayudarte a recuperarla.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- TUS PRIMEROS PASOS -->
+      <section id="primeros" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>✍️</span> Tu Bienvenida y Primeros Pasos</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Todo gran camino comienza con un primer paso de fe."</p>
+
+        <div class="rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 mb-5">
+          <p class="font-semibold text-amber-800 text-sm mb-2">🪨 Dos datos que no podrás cambiar después</p>
+          <p class="text-sm text-amber-700 leading-relaxed mb-2">
+            Para mantener la autenticidad de nuestra comunidad, dos datos son permanentes desde el primer día:
+          </p>
+          <ul class="text-sm text-amber-700 list-disc list-inside space-y-1">
+            <li><strong>Tu nombre completo:</strong> escríbelo exactamente como aparece en tus registros de la Iglesia.</li>
+            <li><strong>Tu fecha de nacimiento:</strong> verifica que sea la correcta antes de confirmar.</li>
+          </ul>
+        </div>
+
+        <div class="space-y-3">
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso mt-0.5">1</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              En la pantalla principal, elige <strong>"Registrarme"</strong>. Verás un formulario sencillo.
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso mt-0.5">2</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              Llena tu <strong>nombre completo, correo electrónico, teléfono y fecha de nacimiento</strong>.
+              Luego crea una contraseña personal de al menos 8 caracteres. Acepta el Código de Conducta
+              del grupo — es el pacto de respeto que nos une.
+            </div>
+          </div>
+          <div class="flex gap-3 items-start bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <span class="paso mt-0.5">3</span>
+            <div class="text-sm text-slate-600 leading-relaxed">
+              Al enviar el formulario, tu cuenta queda <strong>lista pero en espera de aprobación</strong>.
+              Serás llevado a la Sala de Espera automáticamente. ¡Tranquilo, el proceso es rápido!
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SALA DE ESPERA -->
+      <section id="espera" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>⏳</span> La Sala de Espera</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"La paciencia es también una forma de amor."</p>
+
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl px-5 py-5">
+          <p class="text-sm text-indigo-800 leading-relaxed">
+            Después de registrarte, un líder o coordinador del grupo revisará tu solicitud y te dará la bienvenida oficial.
+            Cuando eso suceda, la próxima vez que inicies sesión entrarás directamente a tu Cuartel General y podrás
+            conocer a toda la comunidad.
+            <br /><br />
+            Mientras esperas, puedes cerrar la ventana con toda tranquilidad. <strong>No perderás tu registro.</strong>
+            La pantalla de espera te lo recordará cuando vuelvas.
+          </p>
+        </div>
+      </section>
+
+      <!-- TU PRESENTACIÓN -->
+      <section id="perfil" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>👤</span> Tu Presentación al Grupo</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Deja que te conozcan tal como eres."</p>
+
+        <p class="text-sm text-slate-600 leading-relaxed mb-5">
+          Una vez que tu cuenta sea aprobada, te invitamos a completar tu presentación. Esta es la información
+          que los demás miembros verán cuando visiten tu perfil en El BOOK. Cuanto más compartas, más fácil
+          será que encuentres hermanos con quienes conectar.
+        </p>
+
+        <div class="grid sm:grid-cols-2 gap-4 mb-5">
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2"><span class="text-lg">📝</span> Tus Datos Personales</h3>
+            <ul class="text-sm text-slate-600 space-y-2">
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span><strong>Barrio y Estaca:</strong> tu comunidad eclesiástica.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span><strong>País, Estado y Ciudad:</strong> dónde vives actualmente.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span><strong>Sobre mí (bio):</strong> una pequeña presentación en tus propias palabras (máx. 500 caracteres).</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span><strong>WhatsApp:</strong> tú decides si lo compartes o no.</span></li>
+            </ul>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-3 flex items-center gap-2"><span class="text-lg">📸</span> Tus Fotos y Redes</h3>
+            <ul class="text-sm text-slate-600 space-y-2">
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Sube entre <strong>2 y 5 fotos</strong>. La primera será tu foto de portada.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Formatos aceptados: JPG, PNG, WEBP.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Puedes conectar tu Instagram, Facebook, LinkedIn y otras redes.</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-4">
+          <p class="font-semibold text-emerald-800 text-sm mb-1">✅ ¿Cuándo aparezco en El BOOK?</p>
+          <p class="text-sm text-emerald-700 leading-relaxed">
+            En cuanto un coordinador active tu cuenta, tu perfil aparecerá automáticamente para todos los miembros de la comunidad.
+          </p>
+        </div>
+      </section>
+
+      <!-- TU CUARTEL GENERAL -->
+      <section id="cuartel" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🏠</span> Tu Cuartel General</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Todo lo que necesitas, en un solo lugar."</p>
+
+        <p class="text-sm text-slate-600 leading-relaxed mb-4">
+          Al iniciar sesión llegas a tu <strong>Cuartel General</strong>: la sala principal de la plataforma.
+          Aquí todo está ordenado para que encuentres lo que necesitas en segundos, desde cualquier celular.
+        </p>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-5 py-3 bg-slate-50 border-b border-slate-100">
+            <p class="font-semibold text-slate-700 text-sm">Lo que encontrarás al entrar</p>
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">1.</span>
+              <div><strong>Un saludo personalizado</strong> — con tu nombre y una bienvenida según la hora del día.</div>
+            </div>
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">2.</span>
+              <div><strong>🔔 Lo que han dicho de ti</strong> — un resumen de los mensajes y virtudes que tus hermanos han compartido sobre ti.</div>
+            </div>
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">3.</span>
+              <div><strong>Escritura del Día</strong> — el versículo que un miembro de la comunidad compartió para hoy.</div>
+            </div>
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">4.</span>
+              <div><strong>🎂 Celebrando la Vida</strong> — quiénes cumplen años este mes.</div>
+            </div>
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">5.</span>
+              <div><strong>Tu Presentación</strong> — botones para editar tus datos y fotos.</div>
+            </div>
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">6.</span>
+              <div><strong>Tu Privacidad</strong> — opciones para ocultar o eliminar tu cuenta cuando quieras.</div>
+            </div>
+            <div class="px-5 py-3 flex gap-3 text-sm items-start">
+              <span class="font-bold text-primary shrink-0">7.</span>
+              <div><strong>Accesos directos</strong> — El BOOK, Actividades y Mensajes del grupo.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EL BOOK -->
+      <section id="book" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>📒</span> El BOOK — El Directorio de la Hermandad</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Para conocer a tu prójimo, primero debes buscarlo."</p>
+
+        <p class="text-sm text-slate-600 leading-relaxed mb-4">
+          El BOOK es el corazón de Conexión FRIENDS: el lugar donde puedes conocer a todos los hermanos y hermanas
+          activos del grupo. Verás sus fotos, su barrio, su ciudad y podrás contactarlos.
+        </p>
+
+        <div class="space-y-4">
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-3">🔍 ¿Cómo buscar a alguien?</h3>
+            <ul class="text-sm text-slate-600 space-y-2">
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Filtra por <strong>Hermanos o Hermanas</strong> con un solo toque.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Busca por <strong>nombre, barrio, estaca o ciudad</strong> en el buscador.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Filtra por <strong>rango de edad</strong> o por <strong>país</strong>.</span></li>
+            </ul>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-3">🏅 Las marcas que verás en los perfiles</h3>
+            <div class="space-y-2.5 text-sm">
+              <div class="flex items-center gap-3">
+                <span class="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-xs font-bold shrink-0">Admin</span>
+                <span class="text-slate-600">Es un coordinador del grupo.</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2 py-0.5 rounded-full bg-amber-500 text-white text-xs font-bold shrink-0">✨ Nuevo</span>
+                <span class="text-slate-600">Lleva 6 meses o menos en el grupo — dale una cálida bienvenida.</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-xs font-bold shrink-0">🤝 Confianza</span>
+                <span class="text-slate-600">Lleva más de un año — un pilar de la comunidad.</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="px-2 py-0.5 rounded-full bg-amber-400 text-white text-xs font-bold shrink-0">🎂 Hoy</span>
+                <span class="text-slate-600">¡Hoy es su cumpleaños! Ideal para felicitarle.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+            <h3 class="font-semibold text-slate-800 mb-3">👁️ ¿Qué ves cuando abres el perfil de alguien?</h3>
+            <ul class="text-sm text-slate-600 space-y-2">
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Su galería de fotos, con navegación entre ellas.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Su barrio, estaca y presentación personal.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Botón directo a WhatsApp (si eligió compartirlo).</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>Sus redes sociales enlazadas.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>La sección <strong>✨ Entretejidos</strong> con mensajes y virtudes.</span></li>
+              <li class="flex gap-2"><span class="text-primary font-bold shrink-0">•</span><span>El <strong>🎂 Libro de Firmas de Cumpleaños</strong> (solo en su mes).</span></li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ESCRITURA DEL DÍA -->
+      <section id="escritura" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>📜</span> La Escritura del Día</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"La palabra de Dios es una lámpara a nuestros pies."</p>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Cada día, la plataforma muestra un versículo de las escrituras que un miembro de la comunidad
+            eligió compartir. Es una forma sencilla y hermosa de comenzar el día con inspiración espiritual.
+          </p>
+          <div class="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-sm text-slate-600 italic">
+            "Amad los unos a los otros como yo os he amado." — Juan 15:12
+          </div>
+          <p class="text-sm text-slate-600 font-semibold">¿Quieres compartir una escritura tú también?</p>
+          <div class="space-y-2 text-sm text-slate-600">
+            <div class="flex gap-3 items-start"><span class="paso shrink-0">1</span><span>Ve a la sección <strong>Inspiración</strong> desde el menú.</span></div>
+            <div class="flex gap-3 items-start"><span class="paso shrink-0">2</span><span>Escribe el texto del versículo (máximo 3,000 caracteres) y su referencia exacta (ej. "Mosíah 18:21").</span></div>
+            <div class="flex gap-3 items-start"><span class="paso shrink-0">3</span><span>La plataforma asignará automáticamente el día en que aparecerá tu versículo para toda la comunidad.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CELEBRANDO LA VIDA -->
+      <section id="cumpleanos" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🎂</span> Celebrando la Vida</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Cada cumpleaños es un regalo de Dios que merece ser celebrado en comunidad."</p>
+
+        <div class="space-y-4">
+
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-5">
+            <h3 class="font-semibold text-amber-800 mb-2">¿Cómo funciona?</h3>
+            <p class="text-sm text-amber-700 leading-relaxed">
+              En el mes de cumpleaños de cualquier miembro, su tarjeta en El BOOK lleva una insignia especial:
+              🎂 si es <em>hoy</em>, 🎈 si es <em>esta semana</em>, 🎁 si es <em>este mes</em>.
+              En tu Cuartel General también aparece una sección dorada con los cumpleañeros del mes.
+            </p>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl p-5">
+            <h3 class="font-semibold text-slate-800 mb-3">📖 El Libro de Firmas</h3>
+            <p class="text-sm text-slate-600 leading-relaxed mb-3">
+              Cuando abres el perfil de alguien en su mes de cumpleaños, aparece el <strong>Libro de Firmas</strong>:
+              un espacio para dejar un mensaje de corazón. Solo puedes dejar <strong>una firma por año</strong>,
+              así que elige tus palabras con amor.
+            </p>
+            <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm text-slate-500 italic">
+              "Gracias por tu ejemplo de fe y por la alegría que traes a cada reunión."
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ENTRETEJIDOS -->
+      <section id="entretejidos" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>✨</span> Entretejidos</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Corazones entretejidos con unidad y amor." — Mosíah 18:21</p>
+
+        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl px-5 py-5 mb-5">
+          <p class="text-sm text-indigo-800 leading-relaxed">
+            En lugar de simples "me gusta", en Conexión FRIENDS creemos en la edificación real.
+            La sección <strong>Entretejidos</strong> de cada perfil tiene dos formas de expresar lo que ves en alguien:
+            un <strong>mensaje guiado</strong> y el <strong>reconocimiento de una virtud</strong>.
+          </p>
+        </div>
+
+        <div class="space-y-4">
+
+          <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-50 px-5 py-3 border-b border-slate-200">
+              <p class="font-semibold text-slate-700">💬 Cómo escribir un Mensaje Entretejido</p>
+            </div>
+            <div class="p-5 space-y-3 text-sm text-slate-600">
+              <p>Al abrir el perfil de un hermano o hermana en El BOOK, verás la sección Entretejidos con cuatro preguntas que te invitan a reflexionar antes de escribir:</p>
+              <div class="grid sm:grid-cols-2 gap-2 mt-1">
+                <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 flex gap-2 text-xs items-start"><span class="shrink-0">✨</span><span>¿Qué virtud destacarías de esta persona?</span></div>
+                <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 flex gap-2 text-xs items-start"><span class="shrink-0">🌸</span><span>¿Cómo te hace sentir cuando convives con ella?</span></div>
+                <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 flex gap-2 text-xs items-start"><span class="shrink-0">🌿</span><span>¿Qué momento juntos te ha marcado?</span></div>
+                <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 flex gap-2 text-xs items-start"><span class="shrink-0">☀️</span><span>¿De qué manera ha añadido luz a tu vida?</span></div>
+              </div>
+              <p class="text-xs text-slate-400">Elige una pregunta, escribe desde el corazón y envía. Solo puedes dejar <strong>un mensaje por perfil</strong> — forma parte permanente de su historia en la comunidad.</p>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-slate-50 px-5 py-3 border-b border-slate-200">
+              <p class="font-semibold text-slate-700">🌿 Reconocer una Virtud</p>
+            </div>
+            <div class="p-5 space-y-3 text-sm text-slate-600">
+              <p>En la parte superior de cada sección Entretejidos hay cuatro virtudes. Toca la que reconoces en esa persona — es un gesto silencioso de amor:</p>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1"><span class="text-xl">🌿</span><span class="text-xs font-semibold">Inspira confianza</span></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1"><span class="text-xl">☀️</span><span class="text-xs font-semibold">Transmite alegría</span></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1"><span class="text-xl">📖</span><span class="text-xs font-semibold">Comparte luz</span></div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 flex flex-col gap-1"><span class="text-xl">🤝</span><span class="text-xs font-semibold">Sirve con amor</span></div>
+              </div>
+              <div class="rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3 text-xs text-indigo-700">
+                🚫 <strong>No hay números visibles.</strong> La plataforma no muestra cuántas personas reconocieron algo.
+                Solo ves si una virtud está presente en ese perfil. El <span class="font-semibold">punto azul</span> indica las virtudes que <em>tú</em> personalmente has reconocido.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- TUIS INTERACCIONES -->
+      <section id="interacciones" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🔔</span> Lo que han dicho de ti</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Saber que eres visto y apreciado fortalece el corazón."</p>
+
+        <div class="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Justo debajo de tu saludo en el Cuartel General, aparece un resumen de lo que tus hermanos
+            han compartido sobre ti: quiénes han entretejido su testimonio en tu perfil, si han reconocido
+            virtudes en ti, y quiénes te dejaron una firma en tu Libro de Cumpleaños.
+          </p>
+          <div class="rounded-xl bg-primary/5 border border-primary/15 px-4 py-4 space-y-2.5">
+            <div class="flex gap-3 items-start text-sm"><span class="text-lg leading-none shrink-0">🌿</span><span><strong>Ana, Juan y 2 más</strong> han entretejido sus testimonios en tu perfil.</span></div>
+            <div class="flex gap-3 items-start text-sm"><span class="text-lg leading-none shrink-0">💫</span><span>Varios hermanos han <strong>reconocido virtudes</strong> en ti.</span></div>
+            <div class="flex gap-3 items-start text-sm"><span class="text-lg leading-none shrink-0">🎂</span><span><strong>María y Luis</strong> te dejaron firmas en tu Libro de Cumpleaños.</span></div>
+          </div>
+          <p class="text-xs text-slate-400">Al tocar esta sección, serás llevado directo a tu propio perfil en El BOOK para leer todo con detalle.</p>
+        </div>
+      </section>
+
+      <!-- PRIVACIDAD -->
+      <section id="privacidad" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>🛡️</span> Tu Privacidad es Sagrada</h2>
+        <p class="text-sm text-slate-500 mb-5 italic">"Tú siempre tienes la última palabra sobre tu presencia."</p>
+
+        <div class="space-y-4">
+
+          <div class="bg-white border border-slate-200 rounded-xl p-5">
+            <h3 class="font-semibold text-slate-800 mb-2 flex items-center gap-2"><span>👁️</span> Ocultar mi presentación temporalmente</h3>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Si necesitas un descanso o prefieres no aparecer en El BOOK por un tiempo, puedes ocultar
+              tu perfil con un solo toque desde tu Cuartel General → <strong>Tu Privacidad</strong>.
+              Nadie podrá verte, pero tu cuenta sigue activa. Cuando quieras volver, toca
+              <strong>"Reactivar mi cuenta"</strong> y regresarás al instante.
+            </p>
+          </div>
+
+          <div class="bg-white border border-red-100 rounded-xl p-5">
+            <h3 class="font-semibold text-red-700 mb-2 flex items-center gap-2"><span>🗑️</span> Eliminar mi cuenta</h3>
+            <p class="text-sm text-slate-600 leading-relaxed mb-3">
+              Si decides salir definitivamente, puedes eliminar tu cuenta por completo.
+              Esto borrará todas tus fotos, mensajes y datos de forma permanente.
+            </p>
+            <div class="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700">
+              ⚠️ Esta acción <strong>no se puede deshacer</strong>. La plataforma te pedirá confirmación antes de proceder.
+              Si tienes dudas, considera primero ocultar tu cuenta temporalmente.
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- PREGUNTAS -->
+      <section id="preguntas" class="section-anchor">
+        <h2 class="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2"><span>❓</span> Preguntas Frecuentes</h2>
+        <p class="text-sm text-slate-500 mb-5"></p>
+
+        <div class="space-y-3">
+
+          <details class="group bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <summary class="flex items-center justify-between px-5 py-4 font-medium text-sm text-slate-800 hover:bg-slate-50">
+              ¿Quién puede ver mi perfil?
+              <span class="text-slate-400 group-open:rotate-180 transition-transform duration-200">▼</span>
+            </summary>
+            <div class="px-5 pb-4 pt-2 text-sm text-slate-600 border-t border-slate-100">
+              Solo los miembros con cuenta activa dentro de la plataforma. Conexión FRIENDS no es visible para el público general en internet.
+            </div>
+          </details>
+
+          <details class="group bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <summary class="flex items-center justify-between px-5 py-4 font-medium text-sm text-slate-800 hover:bg-slate-50">
+              ¿Puedo cambiar mi nombre o fecha de nacimiento?
+              <span class="text-slate-400 group-open:rotate-180 transition-transform duration-200">▼</span>
+            </summary>
+            <div class="px-5 pb-4 pt-2 text-sm text-slate-600 border-t border-slate-100">
+              No, estos datos son permanentes para garantizar la autenticidad de la comunidad. Si hay un error real, comunícate con un coordinador del grupo.
+            </div>
+          </details>
+
+          <details class="group bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <summary class="flex items-center justify-between px-5 py-4 font-medium text-sm text-slate-800 hover:bg-slate-50">
+              Olvidé mi contraseña. ¿Qué hago?
+              <span class="text-slate-400 group-open:rotate-180 transition-transform duration-200">▼</span>
+            </summary>
+            <div class="px-5 pb-4 pt-2 text-sm text-slate-600 border-t border-slate-100">
+              Contacta a un coordinador o administrador del grupo. Él puede generarte una contraseña temporal que te permitirá entrar y luego crear la tuya propia de forma segura.
+            </div>
+          </details>
+
+          <details class="group bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <summary class="flex items-center justify-between px-5 py-4 font-medium text-sm text-slate-800 hover:bg-slate-50">
+              ¿Cuántas fotos puedo subir?
+              <span class="text-slate-400 group-open:rotate-180 transition-transform duration-200">▼</span>
+            </summary>
+            <div class="px-5 pb-4 pt-2 text-sm text-slate-600 border-t border-slate-100">
+              Mínimo 2 y máximo 5. La primera siempre será tu foto de portada en El BOOK.
+            </div>
+          </details>
+
+          <details class="group bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <summary class="flex items-center justify-between px-5 py-4 font-medium text-sm text-slate-800 hover:bg-slate-50">
+              ¿Puedo dejar más de un mensaje Entretejido en el mismo perfil?
+              <span class="text-slate-400 group-open:rotate-180 transition-transform duration-200">▼</span>
+            </summary>
+            <div class="px-5 pb-4 pt-2 text-sm text-slate-600 border-t border-slate-100">
+              No. Solo puedes dejar un mensaje por perfil, de forma permanente. Escoge tus palabras con cuidado — serán parte de la historia de esa persona dentro de la comunidad.
+            </div>
+          </details>
+
+          <details class="group bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <summary class="flex items-center justify-between px-5 py-4 font-medium text-sm text-slate-800 hover:bg-slate-50">
+              ¿Por qué no veo cuántas personas reconocieron mis virtudes?
+              <span class="text-slate-400 group-open:rotate-180 transition-transform duration-200">▼</span>
+            </summary>
+            <div class="px-5 pb-4 pt-2 text-sm text-slate-600 border-t border-slate-100">
+              Es una decisión intencional: no queremos fomentar la popularidad ni las comparaciones. Conexión FRIENDS es un espacio de edificación, no de competencia. Sabes que alguien vio algo bello en ti — eso es suficiente.
+            </div>
+          </details>
+
+        </div>
+      </section>
+
+      <!-- PIE -->
+      <footer class="border-t border-slate-200 pt-8 pb-4 text-center">
+        <p class="text-xs text-slate-400">Guía del Miembro — Conexión FRIENDS SUD</p>
+        <p class="text-xs text-slate-400 mt-1 italic">"…que sus corazones estuviesen entretejidos con unidad y amor." — Mosíah 18:21</p>
+      </footer>
+
+    </main>
+  </div>
+
+</body>
+</html>

@@ -23,6 +23,57 @@
 
 ---
 
+## 🔔 MÓDULO NOTIFICACIONES EDIFICANTES — Contrato API (Migración 14)
+
+---
+
+### Endpoint: `api/dashboard/get_interactions_summary.php`
+- **Método:** `GET`
+- **Ruta completa:** `/api/dashboard/get_interactions_summary.php`
+- **Autenticación:** Ninguna (el `userId` es el propio usuario autenticado)
+- **Alcance de DB:** SELECT en `woven_messages`, `birthday_wishes`, `virtue_recognitions` + JOIN `users`
+
+**Params de query (GET):**
+```
+?userId=INT   — requerido, el usuario autenticado (su propio ID)
+```
+
+**⚠️ Regla de Virtudes:** `hasVirtues` es un booleano. Nunca conteo, nunca lista de autores.
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "",
+  "data": {
+    "wovenMessages": {
+      "total":        5,
+      "previewNames": ["Ana Pérez", "Juan López", "María García"]
+    },
+    "birthdayWishes": {
+      "total":        2,
+      "previewNames": ["Luis Hernández", "Elena Rodríguez"]
+    },
+    "hasVirtues": true,
+    "hasAny":     true
+  }
+}
+```
+
+> `previewNames` — máximo 3 nombres completos, orden DESC por `created_at`. El frontend extrae el primer nombre.
+> `hasAny` — `true` si al menos uno de los tres grupos tiene datos. El componente lo usa como guardia de render.
+> `birthdayWishes` — filtrado a `YEAR(created_at) = YEAR(CURDATE())` (solo año en curso).
+> `wovenMessages` — sin filtro temporal (son permanentes).
+
+| Código HTTP | Causa |
+| :--- | :--- |
+| 200 | Éxito (puede contener `hasAny: false` si no hay interacciones) |
+| 400 | `userId` inválido o ausente |
+| 405 | Método distinto de GET |
+| 500 | Error interno |
+
+---
+
 ## ✨ MÓDULO ENTRETEJIDOS — Contratos API (Migración 13)
 
 > **Principio:** Edificación mutua sin popularidad. Cero contadores públicos en todas las respuestas.

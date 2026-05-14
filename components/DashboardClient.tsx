@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ConexionLogo } from "@/components/conexion-logo"
+import { DashboardHighlights } from "@/components/DashboardHighlights"
 import { Card, CardContent } from "@/components/ui/card"
 import { API_BASE_URL } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
@@ -273,6 +274,9 @@ export function DashboardClient() {
             los unos para con los otros." — Mosíah 18:21
           </p>
         </div>
+
+        {/* ── Interacciones recibidas (Highlights) ── */}
+        <DashboardHighlights userId={session?.id ?? null} />
 
         {/* ── Escritura del Día ── */}
         <div className="mb-6">

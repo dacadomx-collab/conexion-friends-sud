@@ -21,3 +21,4 @@ Este documento rige sobre cualquier sugerencia de la IA. La IA es una ejecutora 
     - **`api/conexion.php`** — hub central de CORS, carga de `.env` y clase `Database`. Ningún endpoint PHP puede ejecutarse si este archivo falla.
 
     La IA NO puede asumir que estos pilares existen: debe verificar su presencia o estado antes de diagnosticar cualquier error 500 o de conexión.
+12. **Documentación Viva (El Registro Perpetuo):** Cada vez que se apruebe e implemente un nuevo módulo, tabla o función, la IA tiene la OBLIGACIÓN AUTOMÁTICA de actualizar el `02_SYSTEM_CODEX_REGISTRY.md`, el `03_CONTRATOS_API_Y_LOGICA.md`, y reescribir las secciones correspondientes en los manuales de usuario y administrador en la carpeta `/Manual/` para reflejar los cambios. La documentación debe vivir sincronizada con el código en todo momento. Un módulo no está terminado hasta que su documentación esté grabada.

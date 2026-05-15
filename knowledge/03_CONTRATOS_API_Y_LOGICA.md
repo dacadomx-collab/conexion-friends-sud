@@ -23,6 +23,72 @@
 
 ---
 
+## 🔐 FLUJO CAMBIO DE CONTRASEÑA FORZADO — Contrato API (Migración 12)
+
+> **Propósito:** Cuando un admin resetea la contraseña de un miembro, se activa la bandera `must_change_password = 1`. El miembro debe crear su contraseña personal antes de poder acceder al Dashboard. Este flujo es la barrera de seguridad que lo garantiza.
+
+---
+
+### Endpoint: `api/account/change_password_forced.php`
+- **Método:** `POST`
+- **Ruta completa:** `/api/account/change_password_forced.php`
+- **Autenticación:** Sin token (validación de estado mediante `must_change_password = 1` en DB)
+- **Alcance de DB:** SELECT + UPDATE en tabla `users`
+
+**Payload Requerido (Front → Back) — camelCase:**
+```json
+{
+  "userId":      "int — requerido, ID del usuario autenticado",
+  "newPassword": "string — requerido, mínimo 8 caracteres"
+}
+```
+
+**Response Éxito — HTTP 200:**
+```json
+{
+  "status":  "success",
+  "message": "Contraseña actualizada correctamente. Ya puedes ingresar a la plataforma.",
+  "data":    []
+}
+```
+
+**Responses de Error:**
+| Código HTTP | Causa |
+| :--- | :--- |
+| 400 | `userId` ≤ 0 / `newPassword` < 8 chars / `must_change_password ≠ 1` (el flag ya fue limpiado) |
+| 404 | Usuario no encontrado |
+| 405 | Método distinto de POST |
+| 500 | Error interno (envuelto en `try/catch(\Throwable $e)`) |
+
+**Lógica de negocio:**
+1. Verifica que el usuario existe y tiene `must_change_password = 1`.
+2. Genera hash bcrypt (cost 12) con `password_hash()`. Limpia la variable del plaintext con `unset()`.
+3. UPDATE atómico: `password_hash = :hash, must_change_password = 0`.
+4. El frontend actualiza `localStorage["cfs_session"].mustChangePassword = false` tras HTTP 200 y redirige a `/dashboard`.
+
+**Flujo completo del sistema:**
+```
+Admin → reset_password.php → must_change_password = 1
+  ↓
+Miembro inicia sesión → login.php devuelve mustChangePassword: true
+  ↓
+auth-form.tsx / LoginOnlyClient.tsx → router.push("/cambiar-contrasena")
+  ↓
+DashboardClient.tsx (barrera) → si mustChangePassword === true → router.replace("/cambiar-contrasena")
+  ↓
+ChangePasswordClient → POST change_password_forced.php
+  ↓
+Éxito → must_change_password = 0 → router.replace("/dashboard")
+```
+
+**Reglas de seguridad:**
+- El endpoint solo opera si `must_change_password = 1` en DB — no puede usarse para cambios arbitrarios.
+- `newPassword` en plaintext se destruye con `unset()` inmediatamente después del hash.
+- Tanto `auth-form.tsx` como `LoginOnlyClient.tsx` leen `mustChangePassword` del response de login antes de decidir la ruta destino.
+- `DashboardClient.tsx` tiene una barrera adicional en el `useEffect` de sesión: si `mustChangePassword === true`, redirige a `/cambiar-contrasena` aunque el usuario navegue directo a la URL.
+
+---
+
 ## 🔔 MÓDULO NOTIFICACIONES EDIFICANTES — Contrato API (Migración 14)
 
 ---

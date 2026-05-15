@@ -92,9 +92,19 @@ export function LoginOnlyClient() {
       const result = await parseJsonResponse(res)
 
       if (result.status === "success") {
+        const sessionData = result.data as {
+          mustChangePassword?: boolean
+          status?: string
+        }
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(result.data))
         navigating = true
-        router.push("/dashboard")
+        if (sessionData.mustChangePassword === true) {
+          router.push("/cambiar-contrasena")
+        } else if (sessionData.status === "pending") {
+          router.push("/pendiente")
+        } else {
+          router.push("/dashboard")
+        }
         return
       }
 

@@ -50,55 +50,60 @@ if (strlen($newPassword) < 8) {
 }
 
 // -----------------------------------------------------------------------------
-// 4. CONEXIÓN
+// 4. LÓGICA DE DB — Blindaje con try/catch(\Throwable $e) (Contrato API)
 // -----------------------------------------------------------------------------
-$db  = new Database();
-$pdo = $db->getConnection();
+try {
+    $db  = new Database();
+    $pdo = $db->getConnection();
 
-// -----------------------------------------------------------------------------
-// 5. VERIFICAR QUE EL USUARIO EXISTE Y TIENE LA BANDERA ACTIVA
-// -----------------------------------------------------------------------------
-$stmt = $pdo->prepare("
-    SELECT `id`, `must_change_password`
-    FROM   `users`
-    WHERE  `id` = :id
-    LIMIT  1
-");
-$stmt->execute([':id' => $userId]);
-$user = $stmt->fetch();
+    // ── 4.1 Verificar que el usuario existe y tiene la bandera activa ─────
+    $stmt = $pdo->prepare("
+        SELECT `id`, `must_change_password`
+        FROM   `users`
+        WHERE  `id` = :id
+        LIMIT  1
+    ");
+    $stmt->execute([':id' => $userId]);
+    $user = $stmt->fetch();
 
-if (!$user) {
-    http_response_code(404);
-    echo json_encode(['status' => 'error', 'message' => 'Usuario no encontrado.', 'data' => []]);
-    exit;
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Usuario no encontrado.', 'data' => []]);
+        exit;
+    }
+
+    if ((int) $user['must_change_password'] !== 1) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Este usuario no tiene un cambio de contraseña pendiente.', 'data' => []]);
+        exit;
+    }
+
+    // ── 4.2 Hashear y actualizar — limpiar bandera en la misma sentencia ──
+    $hash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+    unset($newPassword);
+
+    $stmtUpdate = $pdo->prepare("
+        UPDATE `users`
+        SET    `password_hash`        = :hash,
+               `must_change_password` = 0
+        WHERE  `id` = :id
+    ");
+    $stmtUpdate->execute([':hash' => $hash, ':id' => $userId]);
+
+    // ── 4.3 Respuesta de éxito ─────────────────────────────────────────────
+    http_response_code(200);
+    echo json_encode([
+        'status'  => 'success',
+        'message' => 'Contraseña actualizada correctamente. Ya puedes ingresar a la plataforma.',
+        'data'    => [],
+    ]);
+
+} catch (\Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Error interno del servidor.',
+        'debug'   => $e->getMessage(),
+        'data'    => [],
+    ]);
 }
-
-if ((int) $user['must_change_password'] !== 1) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Este usuario no tiene un cambio de contraseña pendiente.', 'data' => []]);
-    exit;
-}
-
-// -----------------------------------------------------------------------------
-// 6. ACTUALIZAR CONTRASEÑA Y LIMPIAR BANDERA
-// -----------------------------------------------------------------------------
-$hash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
-unset($newPassword);
-
-$stmtUpdate = $pdo->prepare("
-    UPDATE `users`
-    SET    `password_hash`        = :hash,
-           `must_change_password` = 0
-    WHERE  `id` = :id
-");
-$stmtUpdate->execute([':hash' => $hash, ':id' => $userId]);
-
-// -----------------------------------------------------------------------------
-// 7. RESPUESTA
-// -----------------------------------------------------------------------------
-http_response_code(200);
-echo json_encode([
-    'status'  => 'success',
-    'message' => 'Contraseña actualizada correctamente. Ya puedes ingresar a la plataforma.',
-    'data'    => [],
-]);

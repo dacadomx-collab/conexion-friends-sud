@@ -145,12 +145,19 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       const result = await parseJsonResponse(response)
 
       if (result.status === "success") {
-        // Persistir sesión: { id, fullName, email, role, status }
+        const sessionData = result.data as {
+          mustChangePassword?: boolean
+          status?: string
+        }
         localStorage.setItem(CFS_SESSION_KEY, JSON.stringify(result.data))
-        // Mantenemos loginLoading=true durante la navegación para evitar
-        // el parpadeo de la landing page. El flag impide que finally lo baje.
         navigating = true
-        router.push("/dashboard")
+        if (sessionData.mustChangePassword === true) {
+          router.push("/cambiar-contrasena")
+        } else if (sessionData.status === "pending") {
+          router.push("/pendiente")
+        } else {
+          router.push("/dashboard")
+        }
         return
       }
 

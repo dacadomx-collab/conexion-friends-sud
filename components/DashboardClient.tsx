@@ -47,11 +47,12 @@ interface BirthdayMember {
 }
 
 interface SessionData {
-  id:       number
-  fullName: string
-  email:    string
-  role?:    string
-  status?:  string
+  id:                   number
+  fullName:             string
+  email:                string
+  role?:                string
+  status?:              string
+  mustChangePassword?:  boolean
 }
 
 interface ScriptureData {
@@ -143,6 +144,8 @@ export function DashboardClient() {
       const data: SessionData = JSON.parse(raw)
       // Usuarios pendientes no pueden acceder al dashboard completo
       if (data.status === "pending") { router.replace("/pendiente"); return }
+      // Barrera de contraseña temporal — redirige aunque el usuario navegue directo a /dashboard
+      if (data.mustChangePassword === true) { router.replace("/cambiar-contrasena"); return }
       setSession(data)
       setAccountStatus(data.status ?? "active")
 

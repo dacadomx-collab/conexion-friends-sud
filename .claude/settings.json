@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "c:\\xampp\\htdocs\\AXON_DCD\\api"
+    ]
+  }
+}
